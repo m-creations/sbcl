@@ -12,6 +12,14 @@
 
 (in-package "SB-VM")
 
+;;;; Tracks
+(defconstant +track-bits+ 8)
+(defconstant +tracks-end+ (ash 1 +track-bits+))
+
+(defconstant +default-track+ 0)
+(defconstant +unused-track+ (- +tracks-end+ 1))
+(defconstant +initial-track+ +default-track+)
+
 ;;;; Arenas
 (defmacro thread-current-arena ()
   `(sap-ref-lispobj (current-thread-offset-sap thread-this-slot)
