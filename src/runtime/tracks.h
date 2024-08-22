@@ -16,4 +16,31 @@
 #ifndef _TRACKS_H_
 #define _TRACKS_H_
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define TRACK_BITS 8
+#define TRACK_MASK ((1 << TRACK_BITS) - 1)
+#define TRACKS_END (1 << TRACK_BITS) /* upper bound (exclusive) */
+
+#define DEFAULT_TRACK 0
+#define UNUSED_TRACK (TRACKS_END - 1)
+#define INITIAL_TRACK DEFAULT_TRACK
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define PAGE_TRACK(page) \
+    (page_tracks)[page]
+
+#define PAGE_TRACK_SET(page, tr) \
+    /*                                                                  \
+    track_index_t tr_old = PAGE_TRACK(page);                            \
+    if (tr_old != tr) {                                                 \
+        fprintf(stderr, "Page %d: track %x -> %x\n", page, tr_old, tr); \
+    }                                                                   \
+    */                                                                  \
+    (page_tracks)[page] = (tr)
+#else
+#define PAGE_TRACK(page)
+#define PAGE_TRACK_SET(page, tr)
+#endif
+
 #endif /* _TRACKS_H_ */
