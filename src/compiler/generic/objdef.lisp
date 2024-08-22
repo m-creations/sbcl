@@ -546,6 +546,7 @@ during backtrace.
   (sprof-enable :special sb-thread::*sprof-enable*) ; = 0 to block SIGPROF
   ;;
   (arena)
+  (track :type sb-vm:word :c-type "uword_t" :pointer nil)
   ;; Miscellaneous arch-specific thread-local state for breakpoints.
   (breakpoint-misc :c-type "void *" :pointer t)
 

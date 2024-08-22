@@ -469,6 +469,7 @@ void dispose_markbits() {
         gc_assert(!page_bytes_used(page));
         set_page_need_to_zero(page, 1);
         set_page_type(page_table[page], FREE_PAGE_FLAG);
+        PAGE_TRACK_SET(page, UNUSED_TRACK);
       }
 }
 

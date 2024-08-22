@@ -400,6 +400,8 @@ statistics are appended to it."
             (sb-vm::flags (unsigned 8)) ; this named 'type' in C
             (sb-vm::gen (signed 8))))
 (define-alien-variable ("page_table" sb-vm:page-table) (* (struct sb-vm::page)))
+#+allocation-tracks
+(define-alien-variable ("page_tracks" sb-vm:page-tracks) (* (unsigned 8)))
 
 (declaim (ftype (sfunction (t) (integer -1 #.(floor most-positive-word sb-vm:gencgc-page-bytes)))
                 sb-vm:find-page-index)
