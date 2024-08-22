@@ -1,8 +1,14 @@
 #ifndef _GC_TYPEDEFS_H_
 #define _GC_TYPEDEFS_H_
+
+#include <stdint.h>
+
 /* These are for grovel-headers because depending on how pedantic your system linker is,
  * it might be an error to try to include gc.h and then not link in any file that
  * provides the inline functions, even if they're never used. */
 typedef int page_index_t;
 typedef signed char generation_index_t;
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+typedef uint8_t track_index_t;
+#endif
 #endif
