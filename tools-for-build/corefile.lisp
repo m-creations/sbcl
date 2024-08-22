@@ -6,6 +6,7 @@
            #:build-id-core-entry-type-code
            #:directory-core-entry-type-code
            #:initial-fun-core-entry-type-code
+           #:page-tracks-core-entry-type-code
            #:page-table-core-entry-type-code
            #:alien-linkage-table-core-entry-type-code
            #:lisp-linkage-space-core-entry-type-code
@@ -46,6 +47,7 @@
 (defconstant build-id-core-entry-type-code 3860)
 (defconstant directory-core-entry-type-code 3861)
 (defconstant initial-fun-core-entry-type-code 3863)
+(defconstant page-tracks-core-entry-type-code 3879)
 (defconstant page-table-core-entry-type-code 3880)
 (defconstant alien-linkage-table-core-entry-type-code 3881)
 (defconstant lisp-linkage-space-core-entry-type-code 3882)
