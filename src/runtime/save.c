@@ -429,8 +429,38 @@ bool save_to_filehandle(FILE *file, char *filename, lispobj init_function,
                                      COMPRESSION_LEVEL_NONE);
         write_lispobj(offset, file);
     }
-#endif
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+    {
+        extern int gc_store_corefile_page_tracks(track_index_t*);
+        size_t ptracks_nbytes = next_free_page * sizeof(track_index_t);
+        size_t aligned_size = ALIGN_UP(ptracks_nbytes, N_WORD_BYTES);
+        char* data = checked_malloc(aligned_size);
+        // Zeroize the final few bytes of data that get written out
+        // but might be untouched by gc_store_corefile_page_track_entries().
+        memset(data + aligned_size - N_WORD_BYTES, 0, N_WORD_BYTES);
 
+        int tr_min_max = gc_store_corefile_page_tracks((track_index_t*)data);
+        if (tr_min_max != DEFAULT_TRACK) {
+            write_lispobj(PAGE_TRACKS_CORE_ENTRY_TYPE_CODE, file);
+            if (tr_min_max < 0) {
+                // Default case: multiple tracks
+                write_lispobj(6, file); // number of words in this core header entry
+                write_lispobj(TRACKS_END, file);
+                write_lispobj(next_free_page, file);
+                write_lispobj(aligned_size, file);
+                sword_t offset = write_bytes(file, data, aligned_size, core_start_pos,
+                                             COMPRESSION_LEVEL_NONE);
+                write_lispobj(offset, file);
+            } else {
+                // Trivial case: all pages on the same track
+                write_lispobj(4, file); // number of words in this core header entry
+                write_lispobj(TRACKS_END, file);
+                write_lispobj(tr_min_max, file);
+            }
+        }
+    }
+#endif /* LISP_FEATURE_ALLOCATION_TRACKS */
+#endif
     write_lispobj(END_CORE_ENTRY_TYPE_CODE, file);
     FSEEK(file, spacecount_pos, SEEK_SET);
     // 5 = length of (struct ndir_entry) in words, plus 2 fixed words
