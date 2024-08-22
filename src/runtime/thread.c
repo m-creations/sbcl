@@ -424,6 +424,19 @@ void create_main_lisp_thread(lispobj function) {
     set_thread_stack(th->control_stack_end);
 #endif
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+    th->track = DEFAULT_TRACK;
+    page_index_t page = 0;
+    while (page < page_table_pages) {
+        if (page_table[page].type == 0) {
+            PAGE_TRACK_SET(page, UNUSED_TRACK);
+        } else if (page_table[page].gen < 6) {
+            PAGE_TRACK_SET(page, DEFAULT_TRACK);
+        }
+        ++page;
+    }
+#endif
+
 #ifdef COLLECT_GC_STATS
     atexit(summarize_gc_stats);
 #endif
