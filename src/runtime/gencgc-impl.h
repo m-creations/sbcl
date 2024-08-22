@@ -115,6 +115,11 @@ struct page {
 };
 extern struct page *page_table;
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+/* invariant: page contents can only be moved to pages of the same track */
+extern track_index_t *page_tracks;
+#endif
+
 /* New objects are allocated to PAGE_TYPE_MIXED or PAGE_TYPE_CONS */
 /* If you change these constants, then possibly also change the following
  * functions in 'room.lisp':
