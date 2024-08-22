@@ -3133,6 +3133,7 @@ structure representations")
            "PAGE-TABLE"
            "FIND-PAGE-INDEX"
            "NEXT-FREE-PAGE"
+           #+allocation-tracks "PAGE-TRACKS"
            "READ-ONLY-SPACE-START" "READ-ONLY-SPACE-END"
            "STATIC-SPACE-START" "STATIC-SPACE-END" "*STATIC-SPACE-FREE-POINTER*"
            "STATIC-CODE-SPACE-START" "STATIC-CODE-SPACE-END" "*STATIC-CODE-SPACE-FREE-POINTER*"
