@@ -289,6 +289,7 @@ static void resweep_moved_lines() {
         reset_page_flags(p);
 #else
         set_page_type(page_table[p], FREE_PAGE_FLAG);
+        PAGE_TRACK_SET(p, UNUSED_TRACK);
         page_table[p].scan_start_offset_ = 0;
 #endif
       }

@@ -1072,6 +1072,19 @@ void gc_allocate_ptes()
      *   index at 1+ appears to start a contiguous block even though
      *   it corresponds to no page)
      */
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+    page_tracks = calloc(page_table_pages+2, sizeof(track_index_t));
+    gc_assert(page_tracks);
+    // Usually initialization is skipped here:
+    //   INITIAL_TRACK == DEFAULT_TRACK == 0
+    if (INITIAL_TRACK) {
+        page_index_t page = 0;
+        while (page < page_table_pages) {
+            PAGE_TRACK_SET(page, INITIAL_TRACK);
+            ++page;
+        }
+    }
+#endif
     page_table = calloc(page_table_pages+2, sizeof(struct page));
     gc_assert(page_table);
     page_table[0].gen = 9; // an arbitrary never-used value
@@ -1182,6 +1195,64 @@ void darwin_jit_code_pages_kludge () {
         }
     }
     THREAD_JIT_WP(1);
+}
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+/* Read corefile page tracks from 'fd' which has already been positioned
+ * and store into page_tracks.  See also gc_load_corefile_ptes below. */
+void gc_load_corefile_page_tracks(int tracks_end,
+                                  core_entry_elt_t n_ptes,
+                                  __attribute__((unused)) core_entry_elt_t total_bytes,
+                                  os_vm_offset_t offset, int fd)
+{
+    if (next_free_page != n_ptes)
+        lose("n_PTEs=%"PAGE_INDEX_FMT" but expected %"PAGE_INDEX_FMT,
+             (int)n_ptes, next_free_page);
+
+    gc_assert(tracks_end == TRACKS_END);
+
+    if (LSEEK(fd, offset, SEEK_SET) != offset) lose("failed seek");
+    gc_assert(ALIGN_UP(n_ptes * sizeof (track_index_t), N_WORD_BYTES)
+              == (size_t)total_bytes);
+
+    char data[8192];
+    page_index_t max_pages_per_read = sizeof data / sizeof (track_index_t);
+    page_index_t page = 0;
+    while (page < n_ptes) {
+        page_index_t pages_remaining = n_ptes - page;
+        page_index_t npages =
+            pages_remaining < max_pages_per_read ? pages_remaining : max_pages_per_read;
+        ssize_t bytes = npages * sizeof (track_index_t);
+        if (read(fd, data, bytes) != bytes) lose("failed read");
+        int i;
+        for ( i = 0 ; i < npages ; ++i, ++page ) {
+            track_index_t tr;
+            memcpy(&tr, data+i*sizeof (track_index_t), sizeof (track_index_t));
+            if (page_table[page].type == FREE_PAGE_FLAG) {
+                PAGE_TRACK_SET(page, UNUSED_TRACK);
+            } else {
+                PAGE_TRACK_SET(page, tr);
+            }
+        }
+    }
+}
+
+/* Alternative page_tracks initialization with a single value
+ * for all pages in use. */
+void gc_init_page_tracks(track_index_t tr_initial) {
+    page_index_t page = 0;
+    page_index_t initialized = 0;
+    for ( page = 0 ; page < next_free_page ; ++page ) {
+        if (page_table[page].type == FREE_PAGE_FLAG) {
+            PAGE_TRACK_SET(page, UNUSED_TRACK);
+        } else {
+            PAGE_TRACK_SET(page, tr_initial);
+            ++initialized;
+        }
+    }
+    fprintf(stderr, "Initial track %02x: %"PAGE_INDEX_FMT" of %"PAGE_INDEX_FMT" pages\n",
+            tr_initial, initialized, next_free_page);
 }
 #endif
 
@@ -1514,6 +1585,34 @@ load_core_file(char *file, os_vm_offset_t file_offset, int merge_core_pages)
              * filled in. This is to know whether to call SB-VM::UNBYPASS-LINKAGE when setting
              * any particular cell. Leave this 0 if the space pointer is null */
             if (linkage_space) initial_linkage_table_count = linkage_table_count;
+            break;
+        case PAGE_TRACKS_CORE_ENTRY_TYPE_CODE:
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+            switch (remaining_len) {
+            case 2:
+                /*
+                fprintf(stderr, "%016lx -- TRACKS_END\n", ptr[0]);
+                fprintf(stderr, "%016lx -- INITIAL_TRACK\n", ptr[1]);
+                */
+                gc_init_page_tracks(ptr[1]);
+                break;
+            case 4:
+                /*
+                fprintf(stderr, "%016lx -- TRACKS_END\n", ptr[0]);
+                fprintf(stderr, "%016lx -- n_ptes\n", ptr[1]);
+                fprintf(stderr, "%016lx -- total_bytes\n", ptr[2]);
+                fprintf(stderr, "%016lx -- offset\n", ptr[3]);
+                */
+                gc_load_corefile_page_tracks(ptr[0], ptr[1], ptr[2],
+                                             file_offset + (ptr[3] + 1) * os_vm_page_size, fd);
+                break;
+            default:
+                fprintf(stderr, "WARNING: Ignoring PAGE_TRACKS_CORE_ENTRY: %ld words remaining (expected 2 or 4)\n",
+                        remaining_len);
+            }
+#else
+            fprintf(stderr, "WARNING: Ignoring allocation tracks from core image.\n");
+#endif
             break;
         case PAGE_TABLE_CORE_ENTRY_TYPE_CODE:
             // elements = n-ptes, nbytes, data-page
@@ -1903,3 +2002,22 @@ void gc_store_corefile_ptes(struct corefile_pte *ptes)
         ptes[i].words_used = used | page_single_obj_p(i);
     }
 }
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+/* Prepare the array of corefile_page_tracks for save */
+int gc_store_corefile_page_tracks(track_index_t *ptracks)
+{
+    page_index_t i;
+    track_index_t tr_min = TRACKS_END - 1;
+    track_index_t tr_max = 0;
+    for (i = 0; i < next_free_page; i++) {
+        track_index_t tr = PAGE_TRACK(i);
+        ptracks[i] = tr;
+        if (tr != UNUSED_TRACK) {
+            tr_min = tr < tr_min ? tr : tr_min;
+            tr_max = tr > tr_max ? tr : tr_max;
+        }
+    }
+    return (tr_min == tr_max) ? (int)tr_min : -(int)tr_max;
+}
+#endif
