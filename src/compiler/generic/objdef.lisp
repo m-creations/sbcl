@@ -575,6 +575,7 @@ during backtrace.
   (sprof-data)
   ;;
   (arena)
+  (track :type sb-vm:word :c-type "uword_t" :pointer nil)
 
   #+x86 (tls-cookie)                          ;  LDT index
   #+sb-thread (tls-size)
