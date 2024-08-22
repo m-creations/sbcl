@@ -74,7 +74,7 @@ static struct cons* private_cons_impl()
         cons = (struct cons*)(page_address(page) + bytes_used);
     } else {
 #ifdef LISP_FEATURE_MARK_REGION_GC
-        struct allocator_state alloc_start = get_alloc_start_page(PAGE_TYPE_UNBOXED);
+        struct allocator_state alloc_start = get_alloc_start_page(DEFAULT_TRACK, PAGE_TYPE_UNBOXED);
         page = try_allocate_large(GENCGC_PAGE_BYTES, PAGE_TYPE_UNBOXED, 0,
                                   &alloc_start, page_table_pages, NULL);
         set_alloc_start_page(PAGE_TYPE_UNBOXED, alloc_start);
@@ -82,13 +82,13 @@ static struct cons* private_cons_impl()
          * Probably not this though. */
         if (page == -1) lose("Ran out of pages for GC-private conses");
 #else
-        page = get_alloc_start_page(PAGE_TYPE_UNBOXED);
+        page = get_alloc_start_page(DEFAULT_TRACK, PAGE_TYPE_UNBOXED);
         page_index_t last_page __attribute__((unused)) =
-            gc_find_freeish_pages(&page, GENCGC_PAGE_BYTES,
+            gc_find_freeish_pages(&page, GENCGC_PAGE_BYTES, DEFAULT_TRACK,
                                   SINGLE_OBJECT_FLAG | PAGE_TYPE_UNBOXED,
                                   GC_PRIVATE_CONS_GENERATION);
         // See question about last_page in gc_alloc_large
-        set_alloc_start_page(PAGE_TYPE_UNBOXED, page);
+        set_alloc_start_page(DEFAULT_TRACK, PAGE_TYPE_UNBOXED, page);
         gc_assert(last_page == page);
 #endif
         page_table[page].gen = GC_PRIVATE_CONS_GENERATION;

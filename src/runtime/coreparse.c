@@ -1002,6 +1002,8 @@ bool gc_allocate_ptes()
      *   index at 1+ appears to start a contiguous block even though
      *   it corresponds to no page)
      */
+    page_tracks = calloc(page_table_pages+2, sizeof(track_t));
+    gc_assert(page_tracks);
     page_table = calloc(page_table_pages+2, sizeof(struct page));
     gc_assert(page_table);
     page_table[0].gen = 9; // an arbitrary never-used value

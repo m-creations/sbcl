@@ -1,0 +1,37 @@
+/*
+ * separate allocation tracks for dynamic space
+ */
+
+/*
+ * This software is part of the SBCL system. See the README file for
+ * more information.
+ *
+ * This software is derived from the CMU CL system, which was
+ * written at Carnegie Mellon University and released into the
+ * public domain. The software is in the public domain and is
+ * provided with absolutely no warranty. See the COPYING and CREDITS
+ * files for more information.
+ */
+
+#ifndef _TRACKS_H_
+#define _TRACKS_H_
+
+#define DEFAULT_TRACK 0
+#define TRACKS_END 256 /* upper bound (exclusive) for page tracks */
+
+#define TRACK_BITS 8
+#define TRACK_MASK ((1 << TRACK_BITS) - 1)
+
+#define PAGE_TRACK(page) \
+    (page_tracks)[page]
+
+#define PAGE_TRACK_SET(page, tr) \
+    /*                                                                  \
+    track_t tr_old = PAGE_TRACK(page);                                  \
+    if (tr_old != tr) {                                                 \
+        fprintf(stderr, "Page %d: track %x -> %x\n", page, tr_old, tr); \
+    }                                                                   \
+    */                                                                  \
+    (page_tracks)[page] = (tr)
+
+#endif /* _TRACKS_H_ */

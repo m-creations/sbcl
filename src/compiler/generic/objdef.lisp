@@ -612,6 +612,7 @@ during backtrace.
   (sprof-data)
   ;;
   (arena)
+  (track)
 
   #+x86 (tls-cookie)                          ;  LDT index
   #+sb-thread (tls-size)
