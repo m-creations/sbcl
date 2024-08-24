@@ -105,6 +105,13 @@
     (inst xrstor (ea 16 rsp-tn))
     (inst pop rdx-tn)))
 
+(define-assembly-routine (switch-to-track (:return-style :raw)) ()
+  ;; RSI and RDI are vop temps, so don't bother preserving them
+  (with-registers-preserved (c :except (rsi rdi))
+    (pseudo-atomic ()
+      #-system-tlabs (inst break halt-trap)
+      #+system-tlabs (call-c "switch_to_track" #+win32 rdi-tn #+win32 rsi-tn))))
+
 (define-assembly-routine (switch-to-arena (:return-style :raw)) ()
   ;; RSI and RDI are vop temps, so don't bother preserving them
   (with-registers-preserved (c :except (rsi rdi))

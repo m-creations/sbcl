@@ -21,6 +21,45 @@
 (defconstant +initial-track+ +default-track+)
 (defconstant +private-cons-track+ +unused-track+)
 
+;; Beware: threads have 'track' slots of type machine word.
+;;
+(deftype track ()
+  `(integer 0 ,(1- +tracks-end+)))
+
+(defmacro thread-current-track ()
+  `(sap-ref-8 (current-thread-offset-sap thread-this-slot)
+              (ash thread-track-slot word-shift)))
+#-sb-xc-host
+(progn
+ ;;; During evaluation of FORM use the default track, automatically
+ ;;; switching away from, and back to, the current track if different.
+  (defmacro without-track (&body body)
+    #-system-tlabs `(progn ,@body)
+    #+system-tlabs
+    `(let ((orig-tr (thread-current-track)))
+       (when (/= orig-tr +default-track+)
+         (switch-to-track +default-track+))
+       (unwind-protect (progn ,@body)
+         (when (/= orig-tr +default-track+)
+           (switch-to-track orig-tr)))))
+  #+system-tlabs
+  (progn
+    (defun switch-to-track (tr)
+      (declare (track tr))
+      (sb-sys:%primitive sb-vm::switch-to-track tr))
+    ;;
+    ;; in: DEFUN CALL-USING-TRACK
+    ;;
+    ;; Error during XC compiler-macroexpansion of (SWITCH-TO-TRACK TRACK).
+    ;; The value TRACK is not of type (UNSIGNED-BYTE 8) when binding TR
+    ;;
+    ;; Error during XC compiler-macroexpansion of (SWITCH-TO-TRACK ORIG-TRACK).
+    ;; The value ORIG-TRACK is not of type (UNSIGNED-BYTE 8) when binding TR
+    #+nil
+    (define-compiler-macro switch-to-track (tr)
+      (declare (track tr))
+      `(sb-sys:%primitive sb-vm::switch-to-track ,tr))))
+
 ;;;; Arenas
 (defmacro thread-current-arena ()
   `(sap-ref-lispobj (current-thread-offset-sap thread-this-slot)
