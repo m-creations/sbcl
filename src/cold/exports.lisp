@@ -3159,6 +3159,8 @@ structure representations")
            "WITH-PSEUDO-ATOMIC-FOREIGN-CALLS"
            "WITH-ARENA" "WITHOUT-ARENA" "FIND-CONTAINING-ARENA"
            "THREAD-CURRENT-ARENA"
+           "WITH-TRACK" "WITHOUT-TRACK" "TRACK-OF"
+           "THREAD-CURRENT-TRACK"
            "WORD" "WORD-REG-SC-NUMBER" "WORD-SHIFT"
            #+win32 "CONTEXT-RESTORE-TRAP"
            "ZERO-SC-NUMBER")
