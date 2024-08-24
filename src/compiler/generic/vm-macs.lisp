@@ -12,6 +12,49 @@
 
 (in-package "SB-VM")
 
+;;;; Tracks
+(defconstant +default-track+ 0)
+(defconstant +tracks-end+ 256)
+(deftype track ()
+  ;; We have a mismatch between (unsigned-byte 8) here
+  ;; and (unsigned-byte 64) on the C side, see below.
+  ;; Need to decide which route to take...
+  `(integer 0 ,(1- +tracks-end+)))
+
+(defmacro thread-current-track ()
+  `(sap-ref-8 (current-thread-offset-sap thread-this-slot)
+              (ash thread-track-slot word-shift)))
+#-sb-xc-host
+(progn
+ ;;; During evaluation of FORM use the default track, automatically
+ ;;; switching away from, and back to, the current track if different.
+  (defmacro without-track (&body body)
+    #-system-tlabs `(progn ,@body)
+    #+system-tlabs
+    `(let ((orig-track (thread-current-track)))
+       (when (/= orig-track +default-track+)
+         (switch-to-track +default-track+))
+       (unwind-protect (progn ,@body)
+         (when (/= orig-track +default-track+)
+           (switch-to-track orig-track)))))
+  #+system-tlabs
+  (progn
+    (defun switch-to-track (tr)
+      (declare (track tr))
+      (sb-sys:%primitive sb-vm::switch-to-track tr))
+    ;;
+    ;; in: DEFUN CALL-USING-TRACK
+    ;;
+    ;; Error during XC compiler-macroexpansion of (SWITCH-TO-TRACK TRACK).
+    ;; The value TRACK is not of type (UNSIGNED-BYTE 8) when binding TR
+    ;;
+    ;; Error during XC compiler-macroexpansion of (SWITCH-TO-TRACK ORIG-TRACK).
+    ;; The value ORIG-TRACK is not of type (UNSIGNED-BYTE 8) when binding TR
+    #+nil
+    (define-compiler-macro switch-to-track (tr)
+      (declare (track tr))
+      `(sb-sys:%primitive sb-vm::switch-to-track ,tr))))
+
 ;;;; Arenas
 (defmacro thread-current-arena ()
   `(sap-ref-lispobj (current-thread-offset-sap thread-this-slot)

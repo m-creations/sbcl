@@ -1,24 +1,35 @@
 (in-package sb-vm)
 
-(export '(arena
+(export '(arena                track              ;; = type (integer 0 (1- +tracks-end+))
+          #+(and)              +track-bits+       ;; = 8
+          #+(and)              +tracks-end+       ;; = 256
+          #+(and)              +default-track+    ;; = 0
+          #+(and)              +reserved-track+   ;; = #xfd
+          #+(and)              +initial-track+    ;; = #xfe
+          #+(and)              +unused-track+     ;; = #xff
           arena-p
-          arena-bytes-used
-          arena-bytes-wasted
-          arena-length
+          arena-bytes-used     ;; track-bytes-used   = sum over track-pages
+          arena-bytes-wasted   ;; track-bytes-wasted = 32k * pages - used
+          arena-length         ;; track-pages        = count pages with given track
           arena-userdata
           new-arena
-          destroy-arena
+          destroy-arena        ;; destroy-track   ;; = rewind + actually zero
           hide-arena
           unhide-arena
-          switch-to-arena
-          rewind-arena
+          #+(and)              with-track
+          #+(and)              call-using-track
+          switch-to-arena      switch-to-track
+          rewind-arena         ;; rewind-track    ;; = mark pages as free + need for zeroing
           unuse-arena
-          in-same-arena
-          dump-arena-objects
-          arena-contents
-          c-find-heap->arena
-          points-to-arena
-          show-heap->arena))
+          in-same-arena        ;; on-same-track
+          dump-arena-objects   ;; dump-track-objects
+          arena-contents       ;; track-contents
+          c-find-heap->arena   ;; c-find-other-heap->track
+          ;;                   ;; c-find-default-track->track
+          points-to-arena      ;; points-to-track
+          show-heap->arena     ;; show-other-heap->track
+          ;;                   ;; show-default-track->track
+          ))
 
 ;;; A contiguous block is described by 'struct arena_memblk' in C.
 ;;; There is no corresponding lisp defstruct.
@@ -119,6 +130,19 @@ one or more times, not to exceed MAX-EXTENSIONS times"
   ;; refer to the structure, but technically that constitutes a use-after-free bug.
   t)
 
+(defmacro with-track ((track) &body body)
+  (declare (ignorable track))
+  #-system-tlabs `(progn ,@body)
+  #+system-tlabs
+  (let* ((tr-var (gensym "TR"))
+         (orig-track-var (gensym "ORIG-TRACK")))
+    `(let* ((,tr-var ,track)
+            (,orig-track-var (thread-current-track)))
+       (declare (track ,tr-var))
+       (switch-to-track ,tr-var)
+       (unwind-protect (progn ,@body)
+         (switch-to-track ,orig-track-var)))))
+
 (defmacro with-arena ((arena) &body body)
   (declare (ignorable arena))
   #-system-tlabs `(progn ,@body)
@@ -201,6 +225,19 @@ one or more times, not to exceed MAX-EXTENSIONS times"
   ;; Inform GC as of now that it can look in the arena
   (setf (arena-hidden arena) nil)
   arena)
+
+(defun maybe-show-track-switch (outer-track inner-track direction reason)
+  (declare (ignore outer-track inner-track direction reason)))
+#+system-tlabs
+(defun call-using-track (thunk track reason)
+  (declare (track track))
+  (let ((orig-track (thread-current-track)))
+    (progn
+      (maybe-show-track-switch orig-track track "enter" reason)
+      (switch-to-track track)
+      (multiple-value-prog1 (funcall thunk)
+        (switch-to-track orig-track)
+        (maybe-show-track-switch orig-track track "leave" reason)))))
 
 (defun maybe-show-arena-switch (direction reason)
   (declare (ignore direction reason)))

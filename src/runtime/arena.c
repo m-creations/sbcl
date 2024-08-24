@@ -170,6 +170,35 @@ static page_index_t close_heap_region(struct alloc_region* r, int page_type) {
     return result;
 }
 
+int inhibit_track_use = 0;
+void switch_to_track(lispobj tr)
+{
+    if (inhibit_track_use) return;
+    uint64_t tr_ = tr >> 1;
+    gc_assert(tr_ < TRACKS_END);
+    gc_assert(tr_ == (tr_ & TRACK_MASK));
+    track_t track = tr_ & TRACK_MASK;
+    struct thread* th = get_sb_vm_thread();
+    struct extra_thread_data *extra_data = thread_extra_data(th);
+    if (th->arena)
+        lose("track error: can't use track together with arena in the same thread");
+    // Page table lock guards the page table
+    acquire_gc_page_table_lock();
+    // Close only the non-system regions
+    extra_data->mixed_page_hint[th->track] = close_heap_region(&th->mixed_tlab, PAGE_TYPE_MIXED);
+    extra_data->cons_page_hint[th->track] = close_heap_region(&th->cons_tlab, PAGE_TYPE_CONS);
+    release_gc_page_table_lock();
+    /*
+    } else {
+        gc_assert(th->track != DEFAULT_TRACK); // must have been a non-default track in use
+        // Indicate that the tlabs have no space remaining.
+        gc_set_region_empty(&th->mixed_tlab);
+        gc_set_region_empty(&th->cons_tlab);
+    }
+    */
+    th->track = (uword_t)track;
+}
+
 int inhibit_arena_use = 0;
 void switch_to_arena(lispobj arena_taggedptr)
 {
@@ -190,8 +219,8 @@ void switch_to_arena(lispobj arena_taggedptr)
             arena_chain = arena_taggedptr;
         }
         // Close only the non-system regions
-        extra_data->mixed_page_hint = close_heap_region(&th->mixed_tlab, PAGE_TYPE_MIXED);
-        extra_data->cons_page_hint = close_heap_region(&th->cons_tlab, PAGE_TYPE_CONS);
+        extra_data->mixed_page_hint[th->track] = close_heap_region(&th->mixed_tlab, PAGE_TYPE_MIXED);
+        extra_data->cons_page_hint[th->track] = close_heap_region(&th->cons_tlab, PAGE_TYPE_CONS);
         release_gc_page_table_lock();
 #if 0 // this causes a data race, the very thing it's trying to avoid
         int arena_index = fixnum_value(arena->index);
