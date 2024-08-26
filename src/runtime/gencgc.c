@@ -159,6 +159,11 @@ int page_cards_all_marked_nonsticky(page_index_t page) {
 /// External function for calling from Lisp.
 page_index_t ext_find_page_index(void *addr) { return find_page_index(addr); }
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+/* an array of track structures. */
+struct track tracks[TRACKS_END];
+#endif
+
 /* an array of generation structures. There needs to be one more
  * generation structure than actual generations as the oldest
  * generation is temporarily raised then lowered. */
@@ -222,6 +227,22 @@ static void show_pinnedobj_count()
             "/pinned objects(g%d): large=%d (%d words), small=%d\n",
             from_space, n_pinned_largeobj, nwords, pinned_objects.count);
 }
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+/* Work through the pages and add up the number of bytes used for the
+ * given track. */
+static __attribute__((unused)) os_vm_size_t
+count_track_bytes_allocated (track_index_t tr)
+{
+    page_index_t i;
+    os_vm_size_t result = 0;
+    for (i = 0; i < next_free_page; i++) {
+        if (!page_free_p(i) && PAGE_TRACK(i) == tr)
+            result += page_words_used(i);
+    }
+    return result*N_WORD_BYTES;
+}
+#endif
 
 /* Work through the pages and add up the number of bytes used for the
  * given generation. */
@@ -743,6 +764,9 @@ gc_close_region(struct alloc_region *alloc_region, int page_type)
         // Update the global totals
         bytes_allocated += region_size;
         generations[gc_alloc_generation].bytes_allocated += region_size;
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+        tracks[tr].bytes_allocated += region_size;
+#endif
 
         /* Set the alloc restart page to the last page of the region. */
         set_alloc_start_page(TRACK_ARG(tr) page_type, next_page-1);
@@ -835,6 +859,9 @@ void *gc_alloc_large(sword_t nbytes, TRACK_ARG(track_index_t tr) int page_type)
     set_page_bytes_used(last_page, final_bytes_used);
     bytes_allocated += nbytes;
     generations[gc_alloc_generation].bytes_allocated += nbytes;
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+    tracks[tr].bytes_allocated += nbytes;
+#endif
 
     if (locked) {
         int __attribute__((unused)) ret = mutex_release(&free_pages_lock);
@@ -1271,6 +1298,9 @@ copy_potential_large_object(lispobj object, sword_t nwords,
         generations[from_space].bytes_allocated -= (bytes_freed + nbytes);
         generations[new_space].bytes_allocated += nbytes;
         bytes_allocated -= bytes_freed;
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+        tracks[tr].bytes_allocated -= bytes_freed;
+#endif
 
         /* Add the region to the new_areas if requested. */
         gc_in_situ_live_nwords += nbytes>>WORD_SHIFT;
