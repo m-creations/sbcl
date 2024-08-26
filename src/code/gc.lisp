@@ -375,9 +375,21 @@ statistics are appended to it."
 (deftype generation-index ()
   `(integer 0 ,sb-vm:+pseudo-static-generation+))
 
+;;; FIXME: TRACK should probably be
+;;; defined in Lisp, and written to header files by genesis, instead of this
+;;; OAOOMiness -- this duplicates the struct definition in gencgc-impl.h.
+(define-alien-type track
+    (struct track
+            (bytes-allocated os-vm-size-t)
+            (cum-sum-bytes-allocated os-vm-size-t)
+            (npages page-index-t)))
+
+(define-alien-variable tracks
+    (array track #.sb-vm::+tracks-end+))
+
 ;;; FIXME: GENERATION (and PAGE, as seen in room.lisp) should probably be
 ;;; defined in Lisp, and written to header files by genesis, instead of this
-;;; OAOOMiness -- this duplicates the struct definition in gencgc.c.
+;;; OAOOMiness -- this duplicates the struct definition in gencgc-impl.h.
 (define-alien-type generation
     (struct generation
             (bytes-allocated os-vm-size-t)
