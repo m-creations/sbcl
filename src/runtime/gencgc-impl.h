@@ -225,6 +225,27 @@ struct generation {
 
 extern struct generation generations[NUM_GENERATIONS];
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+/* a structure to hold the state of a track
+ *
+ * CAUTION: If you modify this, make sure to touch up the alien
+ * definition in src/code/gc.lisp accordingly. ...or better yes,
+ * deal with the FIXME there...
+ */
+struct track {
+    /* the bytes allocated to this track */
+    os_vm_size_t bytes_allocated;
+
+    /* the cumulative sum of the bytes allocated to this track. */
+    os_vm_size_t cum_sum_bytes_allocated;
+
+    /* the number of pages allocated to this track */
+    page_index_t npages;
+};
+
+extern struct track tracks[TRACKS_END];
+#endif
+
 struct __attribute__((packed)) corefile_pte {
   uword_t sso; // scan start offset
   page_words_t words_used; // low bit is the 'large object' flag
