@@ -1004,6 +1004,11 @@ bool gc_allocate_ptes()
      */
     page_tracks = calloc(page_table_pages+2, sizeof(track_t));
     gc_assert(page_tracks);
+    page_index_t page = 0;
+    while (page < page_table_pages) {
+      PAGE_TRACK_SET(page, INITIAL_TRACK); // different from DEFAULT_TRACK
+      ++page;
+    }
     page_table = calloc(page_table_pages+2, sizeof(struct page));
     gc_assert(page_table);
     page_table[0].gen = 9; // an arbitrary never-used value

@@ -138,6 +138,7 @@ page_scan_start(page_index_t page_index)
 void reset_page_flags(page_index_t page) {
     page_table[page].scan_start_offset_ = 0;
     set_page_type(page_table[page], FREE_PAGE_FLAG);
+    PAGE_TRACK_SET(page, UNUSED_TRACK);
     gc_page_pins[page] = 0;
     // Why can't the 'gen' get cleared? It caused failures. THIS MAKES NO SENSE!!!
     //    page_table[page].gen = 0;

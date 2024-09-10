@@ -16,11 +16,14 @@
 #ifndef _TRACKS_H_
 #define _TRACKS_H_
 
-#define DEFAULT_TRACK 0
-#define TRACKS_END 256 /* upper bound (exclusive) for page tracks */
-
 #define TRACK_BITS 8
 #define TRACK_MASK ((1 << TRACK_BITS) - 1)
+#define TRACKS_END (1 << TRACK_BITS) /* upper bound (exclusive) */
+
+#define DEFAULT_TRACK 0
+#define RESERVED_TRACK (TRACKS_END - 3)
+#define INITIAL_TRACK (TRACKS_END - 2)
+#define UNUSED_TRACK (TRACKS_END - 1)
 
 #define PAGE_TRACK(page) \
     (page_tracks)[page]

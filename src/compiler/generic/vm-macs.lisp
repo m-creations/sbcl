@@ -13,8 +13,14 @@
 (in-package "SB-VM")
 
 ;;;; Tracks
+(defconstant +track-bits+ 8)
+(defconstant +tracks-end+ (ash 1 +track-bits+))
+
 (defconstant +default-track+ 0)
-(defconstant +tracks-end+ 256)
+(defconstant +reserved-track+ (- +tracks-end+ 3))
+(defconstant +initial-track+ (- +tracks-end+ 2))
+(defconstant +unused-track+ (- +tracks-end+ 1))
+
 (deftype track ()
   ;; We have a mismatch between (unsigned-byte 8) here
   ;; and (unsigned-byte 64) on the C side, see below.
