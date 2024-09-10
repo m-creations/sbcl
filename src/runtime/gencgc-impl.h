@@ -405,6 +405,7 @@ static inline lispobj
 gc_copy_object_(lispobj object, size_t nwords, void* region, track_t track, int page_type)
 {
     CHECK_COPY_PRECONDITIONS(object, nwords);
+    gc_dcheck(PAGE_TRACK(find_page_index((void *)object)) == track);
 
     /* Allocate space. */
     lispobj *new = gc_general_alloc(region, nwords*N_WORD_BYTES, track, page_type);
@@ -430,6 +431,7 @@ gc_copy_object_resizing(lispobj object, long nwords, void* region, track_t track
                         int old_nwords)
 {
     CHECK_COPY_PRECONDITIONS(object, nwords);
+    gc_dcheck(PAGE_TRACK(find_page_index((void *)object)) == track);
     lispobj *new = gc_general_alloc(region, nwords*N_WORD_BYTES, track, page_type);
     NOTE_TRANSPORTING(object, new, old_nwords);
     memcpy(new, native_pointer(object), old_nwords*N_WORD_BYTES);
