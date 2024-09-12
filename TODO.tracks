@@ -1,0 +1,15 @@
+* [2] preserve current track across save & restart to/from image
+* [5] clean up SWITCH-TO-TRACK as much as possible
+* [7] clean up & extend bookkeeping of bytes_used etc.
+* [9] consolidate user-facing API (safe ops)
+* [10] implement pointer-from-outside detection and DESTROY-TRACK
+
+* add more tests
+* port to other archs (currently x86-64 - only)
+* fix performance regressions (if any)
+
+* use it to quantify origins of server memory load
+* use it for arena size estimation
+* use it for quasi-arenas
+* use it for specific types
+* implement memtop for lisp
