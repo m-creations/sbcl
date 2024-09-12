@@ -1,0 +1,15 @@
+* add tests
+* add :allocation-tracks to *features*
+* add --with-allocation-tracks build-time option
+* port to pmrgc
+* port to other archs (currently x86-64 - only)
+
+* clean up & extend bookkeeping of bytes_used etc.
+* fix performance regressions (if any)
+* implement more of the remaining operations already defined for arenas
+
+* use it to quantify origins of server memory load
+* use it for arena size estimation
+* use it for quasi-arenas
+* use it for specific types
+* implement memtop for lisp
