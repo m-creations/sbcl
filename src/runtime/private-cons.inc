@@ -75,9 +75,9 @@ static struct cons* private_cons_impl()
     } else {
 #ifdef LISP_FEATURE_MARK_REGION_GC
         struct allocator_state alloc_start = get_alloc_start_page(DEFAULT_TRACK, PAGE_TYPE_UNBOXED);
-        page = try_allocate_large(GENCGC_PAGE_BYTES, PAGE_TYPE_UNBOXED, 0,
+        page = try_allocate_large(GENCGC_PAGE_BYTES, DEFAULT_TRACK, PAGE_TYPE_UNBOXED, 0,
                                   &alloc_start, page_table_pages, NULL);
-        set_alloc_start_page(PAGE_TYPE_UNBOXED, alloc_start);
+        set_alloc_start_page(DEFAULT_TRACK, PAGE_TYPE_UNBOXED, alloc_start);
         /* TODO: Should figure out what will trigger "heap exhausted" errors.
          * Probably not this though. */
         if (page == -1) lose("Ran out of pages for GC-private conses");
