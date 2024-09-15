@@ -64,15 +64,17 @@ struct allocator_state {
   bool allow_free_pages;
 };
 
-extern void pre_search_for_small_space(sword_t nbytes, int page_type,
+extern void pre_search_for_small_space(sword_t nbytes, TRACK_ARG(track_index_t tr) int page_type,
                                        struct allocator_state *state, page_index_t end);
 extern bool try_allocate_small_from_pages(sword_t nbytes, struct alloc_region *region,
-                                          int page_type, generation_index_t gen,
+                                          TRACK_ARG(track_index_t tr) int page_type,
+                                          generation_index_t gen,
                                           struct allocator_state *start, page_index_t end);
 extern bool try_allocate_small_after_region(sword_t nbytes,
                                             struct alloc_region *region);
 extern page_index_t try_allocate_large(uword_t nbytes,
-                                       int page_type, generation_index_t gen,
+                                       TRACK_ARG(track_index_t tr) int page_type,
+                                       generation_index_t gen,
                                        struct allocator_state *start, page_index_t end,
                                        uword_t *largest_hole);
 extern void CPU_SPLIT_DECL mr_update_closed_region(struct alloc_region *region, generation_index_t gen);
