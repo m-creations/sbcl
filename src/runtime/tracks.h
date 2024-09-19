@@ -16,6 +16,7 @@
 #ifndef _TRACKS_H_
 #define _TRACKS_H_
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
 #define TRACK_BITS 8
 #define TRACK_MASK ((1 << TRACK_BITS) - 1)
 #define TRACKS_END (1 << TRACK_BITS) /* upper bound (exclusive) */
@@ -24,7 +25,9 @@
 #define RESERVED_TRACK (TRACKS_END - 3)
 #define INITIAL_TRACK (TRACKS_END - 2)
 #define UNUSED_TRACK (TRACKS_END - 1)
+#endif
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
 #define PAGE_TRACK(page) \
     (page_tracks)[page]
 
@@ -36,5 +39,21 @@
     }                                                                   \
     */                                                                  \
     (page_tracks)[page] = (tr)
+#else
+#define PAGE_TRACK(page)
+#define PAGE_TRACK_SET(page, tr)
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define TRACK_ARG(track_arg)  track_arg,
+#else
+#define TRACK_ARG(track_arg)
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define WITH_TRACK_INDEX(var, track_index)  (var)[track_index]
+#else
+#define WITH_TRACK_INDEX(var, track_index)  (var)
+#endif
 
 #endif /* _TRACKS_H_ */

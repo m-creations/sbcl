@@ -372,6 +372,7 @@ void create_main_lisp_thread(lispobj function) {
     set_thread_stack(th->control_stack_end);
 #endif
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
     th->track = DEFAULT_TRACK;
     page_index_t page = 0;
     while (page < page_table_pages) {
@@ -381,6 +382,7 @@ void create_main_lisp_thread(lispobj function) {
           PAGE_TRACK_SET(page, DEFAULT_TRACK);
       ++page;
     }
+#endif
 
 #ifdef COLLECT_GC_STATS
     atexit(summarize_gc_stats);

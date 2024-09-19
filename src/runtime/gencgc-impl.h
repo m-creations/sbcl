@@ -115,8 +115,10 @@ struct page {
 };
 extern struct page *page_table;
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
 /* invariant: page contents can only be moved to pages of the same track */
 extern track_t *page_tracks;
+#endif
 
 /* New objects are allocated to PAGE_TYPE_MIXED or PAGE_TYPE_CONS */
 /* If you change these constants, then possibly also change the following
@@ -223,6 +225,7 @@ struct generation {
 
 extern struct generation generations[NUM_GENERATIONS];
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
 /* a structure to hold the state of a track
  *
  * CAUTION: If you modify this, make sure to touch up the alien
@@ -241,6 +244,7 @@ struct track {
 };
 
 extern struct track tracks[TRACKS_END];
+#endif
 
 struct __attribute__((packed)) corefile_pte {
   uword_t sso; // scan start offset
@@ -317,19 +321,22 @@ void gencgc_apply_code_fixups(struct code *old_code, struct code *new_code);
 extern void gc_close_collector_regions(int);
 
 #define SET_ALLOCATED_BIT(x)
-void *collector_alloc_fallback(struct alloc_region*,sword_t,track_t,int);
+void *collector_alloc_fallback(struct alloc_region*,sword_t,TRACK_ARG(track_t) int);
 static inline void* __attribute__((unused))
-gc_general_alloc(struct alloc_region* region, sword_t nbytes, track_t track, int page_type)
+gc_general_alloc(struct alloc_region* region, sword_t nbytes, TRACK_ARG(track_t track) int page_type)
 {
     void *new_obj = region->free_pointer;
     void *new_free_pointer = (char*)new_obj + nbytes;
     // Large objects will never fit in a region, so we automatically dtrt
     if ((new_free_pointer <= region->end_addr)
-        && (PAGE_TRACK(find_page_index(new_obj)) == track)) {
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+        && (PAGE_TRACK(find_page_index(new_obj)) == track)
+#endif
+        ) {
         region->free_pointer = new_free_pointer;
         return new_obj;
     }
-    return collector_alloc_fallback(region, nbytes, track, page_type);
+    return collector_alloc_fallback(region, nbytes, TRACK_ARG(track) page_type);
 }
 lispobj copy_potential_large_object(lispobj object, sword_t nwords,
                                    struct alloc_region*, int page_type);
@@ -421,13 +428,15 @@ void really_note_transporting(lispobj old,void*new,sword_t nwords);
 extern uword_t gc_copied_nwords, gc_in_situ_live_nwords;
 
 static inline lispobj
-gc_copy_object_(lispobj object, size_t nwords, void* region, track_t track, int page_type)
+gc_copy_object_(lispobj object, size_t nwords, void* region, TRACK_ARG(track_t track) int page_type)
 {
     CHECK_COPY_PRECONDITIONS(object, nwords);
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
     gc_dcheck(PAGE_TRACK(find_page_index((void *)object)) == track);
+#endif
 
     /* Allocate space. */
-    lispobj *new = gc_general_alloc(region, nwords*N_WORD_BYTES, track, page_type);
+    lispobj *new = gc_general_alloc(region, nwords*N_WORD_BYTES, TRACK_ARG(track) page_type);
     NOTE_TRANSPORTING(object, new,  nwords);
 
     /* Copy the object. */
@@ -438,20 +447,25 @@ gc_copy_object_(lispobj object, size_t nwords, void* region, track_t track, int 
 static inline lispobj
 gc_copy_object(lispobj object, size_t nwords, void* region, int page_type)
 {
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
     page_index_t page = find_page_index((void *)object);
     track_t track = PAGE_TRACK(page);
-    return gc_copy_object_(object, nwords, region, track, page_type);
+#endif
+    return gc_copy_object_(object, nwords, region, TRACK_ARG(track) page_type);
 }
 
 // Like above but copy potentially fewer words than are allocated.
 // ('old_nwords' can be, but does not have to be, smaller than 'nwords')
 static inline lispobj
-gc_copy_object_resizing(lispobj object, long nwords, void* region, track_t track, int page_type,
+gc_copy_object_resizing(lispobj object, long nwords, void* region,
+                        TRACK_ARG(track_t track) int page_type,
                         int old_nwords)
 {
     CHECK_COPY_PRECONDITIONS(object, nwords);
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
     gc_dcheck(PAGE_TRACK(find_page_index((void *)object)) == track);
-    lispobj *new = gc_general_alloc(region, nwords*N_WORD_BYTES, track, page_type);
+#endif
+    lispobj *new = gc_general_alloc(region, nwords*N_WORD_BYTES, TRACK_ARG(track) page_type);
     NOTE_TRANSPORTING(object, new, old_nwords);
     memcpy(new, native_pointer(object), old_nwords*N_WORD_BYTES);
     return make_lispobj(new, lowtag_of(object));

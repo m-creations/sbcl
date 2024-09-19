@@ -8,5 +8,7 @@
  * provides the inline functions, even if they're never used. */
 typedef int page_index_t;
 typedef signed char generation_index_t;
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
 typedef uint8_t track_t;
+#endif
 #endif

@@ -626,10 +626,12 @@ static void prepare_dynamic_space_for_final_gc(struct thread* thread)
         if ((page_table[i].type & PAGE_TYPE_MASK) == PAGE_TYPE_UNBOXED)
             page_table[i].type = PAGE_TYPE_MIXED;
 #endif
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
         track_t track = PAGE_TRACK(i);
         if (track != DEFAULT_TRACK) {
             PAGE_TRACK_SET(i, DEFAULT_TRACK);
         }
+#endif
         generation_index_t gen = page_table[i].gen;
         if (gen != 0) {
             page_table[i].gen = 0;
