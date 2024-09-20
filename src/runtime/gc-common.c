@@ -547,8 +547,7 @@ int n_unboxed_instances;
 static inline lispobj copy_instance(lispobj object)
 {
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-    page_index_t page = find_page_index((void *)object);
-    track_index_t track = PAGE_TRACK(page);
+    track_index_t tr = PAGE_TRACK(find_page_index((void *)object));
 #endif
 
     // Object is an un-forwarded object in from_space
@@ -593,7 +592,7 @@ static inline lispobj copy_instance(lispobj object)
         int old_nwords = 1 + (original_length|1);
         int new_length = original_length + (original_length & 1);
         copy = gc_copy_object_resizing(object, 1 + (new_length|1),
-                                       region, TRACK_ARG(track) page_type, old_nwords);
+                                       region, TRACK_ARG(tr) page_type, old_nwords);
         lispobj *base = native_pointer(copy);
         /* store the old address as the hash value */
 #ifdef LISP_FEATURE_64_BIT
@@ -671,11 +670,10 @@ trans_list(lispobj object)
 {
     /* Copy 'object'. */
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-    page_index_t object_page = find_page_index((void *)object);
-    track_index_t object_track = PAGE_TRACK(object_page);
+    track_index_t obj_tr = PAGE_TRACK(find_page_index((void *)object));
 #endif
     struct cons *copy = (struct cons *)
-        gc_general_alloc(cons_region, sizeof(struct cons), TRACK_ARG(object_track) PAGE_TYPE_CONS);
+        gc_general_alloc(cons_region, sizeof(struct cons), TRACK_ARG(obj_tr) PAGE_TYPE_CONS);
     NOTE_TRANSPORTING(object, copy, CONS_SIZE);
     lispobj new_list_pointer = make_lispobj(copy, LIST_POINTER_LOWTAG);
     copy->car = CONS(object)->car;
@@ -693,11 +691,10 @@ trans_list(lispobj object)
         }
         /* Copy 'cdr'. */
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-        page_index_t cdr_page = find_page_index((void *)cdr);
-        track_index_t cdr_track = PAGE_TRACK(cdr_page);
+        track_index_t cdr_tr = PAGE_TRACK(find_page_index((void *)cdr));
 #endif
         struct cons *cdr_copy = (struct cons*)
-            gc_general_alloc(cons_region, sizeof(struct cons), TRACK_ARG(cdr_track) PAGE_TYPE_CONS);
+            gc_general_alloc(cons_region, sizeof(struct cons), TRACK_ARG(cdr_tr) PAGE_TYPE_CONS);
         NOTE_TRANSPORTING(cdr, cdr_copy, CONS_SIZE);
         cdr_copy->car = ((struct cons*)native_cdr)->car;
         /* Grab the cdr before it is clobbered. */
@@ -1792,8 +1789,7 @@ cull_weak_hash_table_bucket(struct hash_table *hash_table,
                             bool rehash)
 {
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-    page_index_t page = find_page_index((void *)hash_table);
-    track_index_t track = PAGE_TRACK(page);
+    track_index_t tr = PAGE_TRACK(find_page_index((void *)hash_table));
 #endif
     const lispobj empty_symbol = UNBOUND_MARKER_WIDETAG;
     int eql_hashing = hashtable_kind(hash_table) == HASHTABLE_KIND_EQL;
@@ -1827,7 +1823,7 @@ cull_weak_hash_table_bucket(struct hash_table *hash_table,
             if ((index & ~0x3FFF) | (bucket & ~0x3FFF)) { // large values
                 cons = (struct cons*)
                   gc_general_alloc(cons_region, 2 * sizeof(struct cons),
-                                   TRACK_ARG(track) PAGE_TYPE_CONS);
+                                   TRACK_ARG(tr) PAGE_TYPE_CONS);
                 cons->car = make_lispobj(cons + 1, LIST_POINTER_LOWTAG);
                 cons[1].car = make_fixnum(index);  // which cell became free
                 cons[1].cdr = make_fixnum(bucket); // which chain was it in
@@ -1839,7 +1835,7 @@ cull_weak_hash_table_bucket(struct hash_table *hash_table,
             } else { // small values
                 cons = (struct cons*)
                   gc_general_alloc(cons_region, sizeof(struct cons),
-                                   TRACK_ARG(track) PAGE_TYPE_CONS);
+                                   TRACK_ARG(tr) PAGE_TYPE_CONS);
                 cons->car = ((index << 14) | bucket) << N_FIXNUM_TAG_BITS;
             }
             cons->cdr = hash_table->smashed_cells;

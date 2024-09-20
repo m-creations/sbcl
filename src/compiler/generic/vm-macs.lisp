@@ -37,12 +37,12 @@
   (defmacro without-track (&body body)
     #-system-tlabs `(progn ,@body)
     #+system-tlabs
-    `(let ((orig-track (thread-current-track)))
-       (when (/= orig-track +default-track+)
+    `(let ((orig-tr (thread-current-track)))
+       (when (/= orig-tr +default-track+)
          (switch-to-track +default-track+))
        (unwind-protect (progn ,@body)
-         (when (/= orig-track +default-track+)
-           (switch-to-track orig-track)))))
+         (when (/= orig-tr +default-track+)
+           (switch-to-track orig-tr)))))
   #+system-tlabs
   (progn
     (defun switch-to-track (tr)

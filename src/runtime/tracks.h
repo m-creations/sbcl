@@ -45,15 +45,15 @@
 #endif
 
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-#define TRACK_ARG(track_arg)  track_arg,
+#define TRACK_ARG(arg)  arg,
 #else
-#define TRACK_ARG(track_arg)
+#define TRACK_ARG(arg)
 #endif
 
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-#define WITH_TRACK_INDEX(var, track_index)  (var)[track_index]
+#define WITH_TRACK_INDEX(var, i)  (var)[i]
 #else
-#define WITH_TRACK_INDEX(var, track_index)  (var)
+#define WITH_TRACK_INDEX(var, i)  (var)
 #endif
 
 #endif /* _TRACKS_H_ */

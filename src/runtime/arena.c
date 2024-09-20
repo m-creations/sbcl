@@ -172,13 +172,13 @@ static page_index_t close_heap_region(struct alloc_region* r, int page_type) {
 
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
 int inhibit_track_use = 0;
-void switch_to_track(lispobj tr)
+void switch_to_track(lispobj track)
 {
     if (inhibit_track_use) return;
-    uint64_t tr_ = tr >> 1;
+    uint64_t tr_ = track >> N_FIXNUM_TAG_BITS;
     gc_assert(tr_ < TRACKS_END);
     gc_assert(tr_ == (tr_ & TRACK_MASK));
-    track_index_t track = tr_ & TRACK_MASK;
+    track_index_t tr = tr_ & TRACK_MASK;
     struct thread* th = get_sb_vm_thread();
     struct extra_thread_data *extra_data = thread_extra_data(th);
     if (th->arena)
@@ -197,7 +197,7 @@ void switch_to_track(lispobj tr)
         gc_set_region_empty(&th->cons_tlab);
     }
     */
-    th->track = (uword_t)track;
+    th->track = (uword_t)tr;
 }
 #else
 void switch_to_track(lispobj __attribute__((unused)) tr) {}

@@ -197,7 +197,7 @@ generation_index_t get_alloc_generation() { return gc_alloc_generation; }
 /* We use five regions for the current newspace generation. */
 struct alloc_region gc_alloc_region[6];
 
-static _Atomic struct allocator_state WITH_TRACK_INDEX(alloc_start_states,TRACKS_END)[8]; // one for each combination (track, PAGE_TYPE_x)
+static _Atomic struct allocator_state WITH_TRACK_INDEX(alloc_start_states,TRACKS_END)[8]; // one for each combination (tr, PAGE_TYPE_x)
 static page_index_t max_alloc_start_page; // the largest of any array element
 page_index_t gencgc_alloc_start_page; // initializer for the preceding array
 
@@ -223,22 +223,22 @@ void reset_alloc_start_pages(bool allow_free_pages) {
 }
 
 static struct allocator_state
-get_alloc_start_page(TRACK_ARG(track_index_t track) unsigned int page_type)
+get_alloc_start_page(TRACK_ARG(track_index_t tr) unsigned int page_type)
 {
     if (page_type > 7) lose("bad page_type: %d", page_type);
     struct thread* th = get_sb_vm_thread();
-    struct allocator_state global_start = WITH_TRACK_INDEX(alloc_start_states,track)[page_type];
+    struct allocator_state global_start = WITH_TRACK_INDEX(alloc_start_states,tr)[page_type];
     page_index_t hint;
     switch (page_type) {
     case PAGE_TYPE_MIXED:
-        if ((hint = WITH_TRACK_INDEX(thread_extra_data(th)->mixed_page_hint,track)) > 0 && hint <= global_start.page) {
-            WITH_TRACK_INDEX(thread_extra_data(th)->mixed_page_hint,track) = - 1;
+        if ((hint = WITH_TRACK_INDEX(thread_extra_data(th)->mixed_page_hint,tr)) > 0 && hint <= global_start.page) {
+            WITH_TRACK_INDEX(thread_extra_data(th)->mixed_page_hint,tr) = - 1;
             return (struct allocator_state){hint, global_start.allow_free_pages};
         }
         break;
     case PAGE_TYPE_CONS:
-        if ((hint = WITH_TRACK_INDEX(thread_extra_data(th)->cons_page_hint,track)) > 0 && hint <= global_start.page) {
-            WITH_TRACK_INDEX(thread_extra_data(th)->cons_page_hint,track) = - 1;
+        if ((hint = WITH_TRACK_INDEX(thread_extra_data(th)->cons_page_hint,tr)) > 0 && hint <= global_start.page) {
+            WITH_TRACK_INDEX(thread_extra_data(th)->cons_page_hint,tr) = - 1;
             return (struct allocator_state){hint, global_start.allow_free_pages};
         }
         break;
@@ -247,11 +247,11 @@ get_alloc_start_page(TRACK_ARG(track_index_t track) unsigned int page_type)
 }
 
 static void
-set_alloc_start_page(TRACK_ARG(track_index_t track) unsigned int page_type, struct allocator_state state)
+set_alloc_start_page(TRACK_ARG(track_index_t tr) unsigned int page_type, struct allocator_state state)
 {
     if (page_type > 7) lose("bad page_type: %d", page_type);
     if (state.page > max_alloc_start_page) max_alloc_start_page = state.page;
-    WITH_TRACK_INDEX(alloc_start_states,track)[page_type] = state;
+    WITH_TRACK_INDEX(alloc_start_states,tr)[page_type] = state;
 }
 #include "private-cons.inc"
 
@@ -265,12 +265,12 @@ void gc_close_region(struct alloc_region *alloc_region,
  * when it can't fit in the open region.
  * This entry point is only for use within the GC itself. */
 void *collector_alloc_fallback(struct alloc_region* region, sword_t nbytes,
-                               TRACK_ARG(track_index_t track) int page_type) {
-    struct allocator_state alloc_start = get_alloc_start_page(TRACK_ARG(track) page_type);
+                               TRACK_ARG(track_index_t tr) int page_type) {
+    struct allocator_state alloc_start = get_alloc_start_page(TRACK_ARG(tr) page_type);
     void *new_obj;
     if ((uword_t)nbytes >= (GENCGC_PAGE_BYTES / 4 * 3)) {
         uword_t largest_hole;
-        page_index_t new_page = try_allocate_large(nbytes, TRACK_ARG(track) page_type,
+        page_index_t new_page = try_allocate_large(nbytes, TRACK_ARG(tr) page_type,
                                                    gc_alloc_generation,
                                                    &alloc_start, page_table_pages, &largest_hole);
         if (new_page == -1) gc_heap_exhausted_error_or_lose(largest_hole, nbytes);
@@ -279,13 +279,13 @@ void *collector_alloc_fallback(struct alloc_region* region, sword_t nbytes,
     } else {
         ensure_region_closed(region, page_type);
         bool success =
-            try_allocate_small_from_pages(nbytes, region, TRACK_ARG(track) page_type,
+            try_allocate_small_from_pages(nbytes, region, TRACK_ARG(tr) page_type,
                                           gc_alloc_generation,
                                           &alloc_start, page_table_pages);
         if (!success) gc_heap_exhausted_error_or_lose(0, nbytes);
         new_obj = region->start_addr;
     }
-    set_alloc_start_page(TRACK_ARG(track) page_type, alloc_start);
+    set_alloc_start_page(TRACK_ARG(tr) page_type, alloc_start);
     return new_obj;
 }
 
@@ -1320,8 +1320,8 @@ lisp_alloc(__attribute__((unused)) int flags,
            int page_type, struct thread *thread)
 {
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-    track_index_t track = thread->track;
-    gc_assert ((int)track < TRACKS_END);
+    track_index_t tr = thread->track;
+    gc_assert ((int)tr < TRACKS_END);
 #endif
     os_vm_size_t trigger_bytes = 0;
 
@@ -1407,17 +1407,17 @@ lisp_alloc(__attribute__((unused)) int flags,
 #endif
 
     ensure_region_closed(region, page_type);
-    struct allocator_state alloc_start = get_alloc_start_page(TRACK_ARG(track) page_type);
+    struct allocator_state alloc_start = get_alloc_start_page(TRACK_ARG(tr) page_type);
     bool largep = nbytes >= LARGE_OBJECT_SIZE && page_type != PAGE_TYPE_CONS;
     if (largep) {
         int __attribute__((unused)) ret = mutex_acquire(&free_pages_lock);
         gc_assert(ret);
         uword_t largest_hole;
-        page_index_t new_page = try_allocate_large(nbytes, TRACK_ARG(track) page_type,
+        page_index_t new_page = try_allocate_large(nbytes, TRACK_ARG(tr) page_type,
                                                    gc_alloc_generation,
                                                    &alloc_start, page_table_pages, &largest_hole);
         if (new_page == -1) gc_heap_exhausted_error_or_lose(largest_hole, nbytes);
-        set_alloc_start_page(TRACK_ARG(track) page_type, alloc_start);
+        set_alloc_start_page(TRACK_ARG(tr) page_type, alloc_start);
         ret = mutex_release(&free_pages_lock);
         gc_assert(ret);
         new_obj = page_address(new_page);
@@ -1425,7 +1425,7 @@ lisp_alloc(__attribute__((unused)) int flags,
         gc_memclear(page_type, new_obj, nbytes);
     } else {
         /* Try to find a page before acquiring free_pages_lock. */
-        pre_search_for_small_space(nbytes, TRACK_ARG(track) page_type,
+        pre_search_for_small_space(nbytes, TRACK_ARG(tr) page_type,
                                    &alloc_start, page_table_pages);
         int __attribute__((unused)) ret = mutex_acquire(&free_pages_lock);
         gc_assert(ret);
@@ -1433,11 +1433,11 @@ lisp_alloc(__attribute__((unused)) int flags,
         /* This search will only re-visit the page found by pre_search_for_small_space
          * if no one else claimed the page since acquiring free_pages_lock. */
         bool success =
-            try_allocate_small_from_pages(nbytes, region, TRACK_ARG(track) page_type,
+            try_allocate_small_from_pages(nbytes, region, TRACK_ARG(tr) page_type,
                                           gc_alloc_generation,
                                           &alloc_start, page_table_pages);
         if (!success) gc_heap_exhausted_error_or_lose(0, nbytes);
-        set_alloc_start_page(TRACK_ARG(track) page_type, alloc_start);
+        set_alloc_start_page(TRACK_ARG(tr) page_type, alloc_start);
         ret = mutex_release(&free_pages_lock);
         gc_assert(ret);
         new_obj = region->start_addr;
