@@ -73,7 +73,7 @@ int save_lisp_gc_iteration;
 page_index_t page_table_pages;
 struct page *page_table;
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-track_t *page_tracks;
+track_index_t *page_tracks;
 #endif
 unsigned char *gc_page_pins;
 unsigned char *gc_card_mark;
@@ -223,7 +223,7 @@ void reset_alloc_start_pages(bool allow_free_pages) {
 }
 
 static struct allocator_state
-get_alloc_start_page(TRACK_ARG(track_t track) unsigned int page_type)
+get_alloc_start_page(TRACK_ARG(track_index_t track) unsigned int page_type)
 {
     if (page_type > 7) lose("bad page_type: %d", page_type);
     struct thread* th = get_sb_vm_thread();
@@ -247,7 +247,7 @@ get_alloc_start_page(TRACK_ARG(track_t track) unsigned int page_type)
 }
 
 static void
-set_alloc_start_page(TRACK_ARG(track_t track) unsigned int page_type, struct allocator_state state)
+set_alloc_start_page(TRACK_ARG(track_index_t track) unsigned int page_type, struct allocator_state state)
 {
     if (page_type > 7) lose("bad page_type: %d", page_type);
     if (state.page > max_alloc_start_page) max_alloc_start_page = state.page;
@@ -265,7 +265,7 @@ void gc_close_region(struct alloc_region *alloc_region,
  * when it can't fit in the open region.
  * This entry point is only for use within the GC itself. */
 void *collector_alloc_fallback(struct alloc_region* region, sword_t nbytes,
-                               TRACK_ARG(track_t track) int page_type) {
+                               TRACK_ARG(track_index_t track) int page_type) {
     struct allocator_state alloc_start = get_alloc_start_page(TRACK_ARG(track) page_type);
     void *new_obj;
     if ((uword_t)nbytes >= (GENCGC_PAGE_BYTES / 4 * 3)) {
@@ -1320,7 +1320,7 @@ lisp_alloc(__attribute__((unused)) int flags,
            int page_type, struct thread *thread)
 {
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-    track_t track = thread->track;
+    track_index_t track = thread->track;
     gc_assert ((int)track < TRACKS_END);
 #endif
     os_vm_size_t trigger_bytes = 0;

@@ -162,7 +162,7 @@ DEF_FINDER(find_used_line, line_index_t, line_bytemap[where], end);
 /* Try to find a page which could fit a new object. This should be
  * be called before the caller locks and calls
  * try_allocate_small_from_pages, to minimise the time spent locking. */
-void pre_search_for_small_space(sword_t nbytes, TRACK_ARG(track_t track) int page_type,
+void pre_search_for_small_space(sword_t nbytes, TRACK_ARG(track_index_t track) int page_type,
                                 struct allocator_state *state, page_index_t end) {
   sword_t nlines = ALIGN_UP(nbytes, LINE_SIZE) / LINE_SIZE;
   for (page_index_t page = state->page; page < end; page++) {
@@ -236,7 +236,7 @@ extern generation_index_t get_alloc_generation();
 /* try_allocate_small_from_pages updates the start pointer to after the
  * claimed page. */
 bool try_allocate_small_from_pages(sword_t nbytes, struct alloc_region *region,
-                                   TRACK_ARG(track_t track) int page_type, generation_index_t gen,
+                                   TRACK_ARG(track_index_t track) int page_type, generation_index_t gen,
                                    struct allocator_state *start, page_index_t end) {
   gc_assert(gen != SCRATCH_GENERATION);
  again:
@@ -285,7 +285,7 @@ DEF_FINDER(find_free_page, page_index_t, page_free_p(where), -1);
 DEF_FINDER(find_used_page, page_index_t, !page_free_p(where), end);
 
 page_index_t try_allocate_large(uword_t nbytes,
-                                TRACK_ARG(track_t track) int page_type, generation_index_t gen,
+                                TRACK_ARG(track_index_t track) int page_type, generation_index_t gen,
                                 struct allocator_state *start, page_index_t end,
                                 uword_t *largest_hole) {
   gc_assert(gen != SCRATCH_GENERATION);

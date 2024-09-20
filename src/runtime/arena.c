@@ -178,7 +178,7 @@ void switch_to_track(lispobj tr)
     uint64_t tr_ = tr >> 1;
     gc_assert(tr_ < TRACKS_END);
     gc_assert(tr_ == (tr_ & TRACK_MASK));
-    track_t track = tr_ & TRACK_MASK;
+    track_index_t track = tr_ & TRACK_MASK;
     struct thread* th = get_sb_vm_thread();
     struct extra_thread_data *extra_data = thread_extra_data(th);
     if (th->arena)

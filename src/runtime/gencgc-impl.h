@@ -117,7 +117,7 @@ extern struct page *page_table;
 
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
 /* invariant: page contents can only be moved to pages of the same track */
-extern track_t *page_tracks;
+extern track_index_t *page_tracks;
 #endif
 
 /* New objects are allocated to PAGE_TYPE_MIXED or PAGE_TYPE_CONS */
@@ -321,9 +321,9 @@ void gencgc_apply_code_fixups(struct code *old_code, struct code *new_code);
 extern void gc_close_collector_regions(int);
 
 #define SET_ALLOCATED_BIT(x)
-void *collector_alloc_fallback(struct alloc_region*,sword_t,TRACK_ARG(track_t) int);
+void *collector_alloc_fallback(struct alloc_region*,sword_t,TRACK_ARG(track_index_t) int);
 static inline void* __attribute__((unused))
-gc_general_alloc(struct alloc_region* region, sword_t nbytes, TRACK_ARG(track_t track) int page_type)
+gc_general_alloc(struct alloc_region* region, sword_t nbytes, TRACK_ARG(track_index_t track) int page_type)
 {
     void *new_obj = region->free_pointer;
     void *new_free_pointer = (char*)new_obj + nbytes;
@@ -428,7 +428,7 @@ void really_note_transporting(lispobj old,void*new,sword_t nwords);
 extern uword_t gc_copied_nwords, gc_in_situ_live_nwords;
 
 static inline lispobj
-gc_copy_object_(lispobj object, size_t nwords, void* region, TRACK_ARG(track_t track) int page_type)
+gc_copy_object_(lispobj object, size_t nwords, void* region, TRACK_ARG(track_index_t track) int page_type)
 {
     CHECK_COPY_PRECONDITIONS(object, nwords);
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
@@ -449,7 +449,7 @@ gc_copy_object(lispobj object, size_t nwords, void* region, int page_type)
 {
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
     page_index_t page = find_page_index((void *)object);
-    track_t track = PAGE_TRACK(page);
+    track_index_t track = PAGE_TRACK(page);
 #endif
     return gc_copy_object_(object, nwords, region, TRACK_ARG(track) page_type);
 }
@@ -458,7 +458,7 @@ gc_copy_object(lispobj object, size_t nwords, void* region, int page_type)
 // ('old_nwords' can be, but does not have to be, smaller than 'nwords')
 static inline lispobj
 gc_copy_object_resizing(lispobj object, long nwords, void* region,
-                        TRACK_ARG(track_t track) int page_type,
+                        TRACK_ARG(track_index_t track) int page_type,
                         int old_nwords)
 {
     CHECK_COPY_PRECONDITIONS(object, nwords);

@@ -548,7 +548,7 @@ static inline lispobj copy_instance(lispobj object)
 {
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
     page_index_t page = find_page_index((void *)object);
-    track_t track = PAGE_TRACK(page);
+    track_index_t track = PAGE_TRACK(page);
 #endif
 
     // Object is an un-forwarded object in from_space
@@ -672,7 +672,7 @@ trans_list(lispobj object)
     /* Copy 'object'. */
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
     page_index_t object_page = find_page_index((void *)object);
-    track_t object_track = PAGE_TRACK(object_page);
+    track_index_t object_track = PAGE_TRACK(object_page);
 #endif
     struct cons *copy = (struct cons *)
         gc_general_alloc(cons_region, sizeof(struct cons), TRACK_ARG(object_track) PAGE_TYPE_CONS);
@@ -694,7 +694,7 @@ trans_list(lispobj object)
         /* Copy 'cdr'. */
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
         page_index_t cdr_page = find_page_index((void *)cdr);
-        track_t cdr_track = PAGE_TRACK(cdr_page);
+        track_index_t cdr_track = PAGE_TRACK(cdr_page);
 #endif
         struct cons *cdr_copy = (struct cons*)
             gc_general_alloc(cons_region, sizeof(struct cons), TRACK_ARG(cdr_track) PAGE_TYPE_CONS);
@@ -1793,7 +1793,7 @@ cull_weak_hash_table_bucket(struct hash_table *hash_table,
 {
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
     page_index_t page = find_page_index((void *)hash_table);
-    track_t track = PAGE_TRACK(page);
+    track_index_t track = PAGE_TRACK(page);
 #endif
     const lispobj empty_symbol = UNBOUND_MARKER_WIDETAG;
     int eql_hashing = hashtable_kind(hash_table) == HASHTABLE_KIND_EQL;

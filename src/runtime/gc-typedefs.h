@@ -9,6 +9,6 @@
 typedef int page_index_t;
 typedef signed char generation_index_t;
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-typedef uint8_t track_t;
+typedef uint8_t track_index_t;
 #endif
 #endif

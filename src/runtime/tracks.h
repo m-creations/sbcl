@@ -33,7 +33,7 @@
 
 #define PAGE_TRACK_SET(page, tr) \
     /*                                                                  \
-    track_t tr_old = PAGE_TRACK(page);                                  \
+    track_index_t tr_old = PAGE_TRACK(page);                                  \
     if (tr_old != tr) {                                                 \
         fprintf(stderr, "Page %d: track %x -> %x\n", page, tr_old, tr); \
     }                                                                   \

@@ -95,7 +95,7 @@ int save_lisp_gc_iteration;
 page_index_t page_table_pages;
 struct page *page_table;
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-track_t *page_tracks;
+track_index_t *page_tracks;
 #endif
 unsigned char *gc_page_pins;
 unsigned char *gc_card_mark;
@@ -232,7 +232,7 @@ static void show_pinnedobj_count()
 /* Work through the pages and add up the number of bytes used for the
  * given track. */
 static __attribute__((unused)) os_vm_size_t
-count_track_bytes_allocated (track_t track)
+count_track_bytes_allocated (track_index_t track)
 {
     page_index_t i;
     os_vm_size_t result = 0;
@@ -354,7 +354,7 @@ page_index_t gencgc_alloc_start_page; // initializer for the preceding array
         max_alloc_start_page = gencgc_alloc_start_page;
 #endif
 static page_index_t
-get_alloc_start_page(TRACK_ARG(track_t track) unsigned int page_type)
+get_alloc_start_page(TRACK_ARG(track_index_t track) unsigned int page_type)
 {
     if (page_type > 7) lose("bad page_type: %d", page_type);
     struct thread* th = get_sb_vm_thread();
@@ -378,7 +378,7 @@ get_alloc_start_page(TRACK_ARG(track_t track) unsigned int page_type)
 }
 
 static inline void
-set_alloc_start_page(TRACK_ARG(track_t track) unsigned int page_type, page_index_t page)
+set_alloc_start_page(TRACK_ARG(track_index_t track) unsigned int page_type, page_index_t page)
 {
     if (page_type > 7) lose("bad page_type: %d", page_type);
     if (page > max_alloc_start_page) max_alloc_start_page = page;
@@ -424,7 +424,7 @@ set_alloc_start_page(TRACK_ARG(track_t track) unsigned int page_type, page_index
  * having specified 'gen' and 'type' values. It must not be pinned
  * and must be marked but not referenced from the stack */
 static inline bool
-page_extensible_p(page_index_t index, generation_index_t gen, TRACK_ARG(track_t track) int type) {
+page_extensible_p(page_index_t index, generation_index_t gen, TRACK_ARG(track_index_t track) int type) {
 #ifdef LISP_FEATURE_BIG_ENDIAN /* TODO: implement this as single comparison */
     int attributes_match =
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
@@ -457,7 +457,7 @@ void gc_heap_exhausted_error_or_lose (sword_t available, sword_t requested) neve
  *   (implied by the preceding restriction).
  * SMALL_MIXED is similar to cons, but all bytes of the page can be used
  * for storing objects, subject to the non-card-spaning constraint. */
-static page_index_t find_single_page(TRACK_ARG(track_t track) int page_type, sword_t nbytes, generation_index_t gen)
+static page_index_t find_single_page(TRACK_ARG(track_index_t track) int page_type, sword_t nbytes, generation_index_t gen)
 {
     page_index_t page = WITH_TRACK_INDEX(alloc_start_pages,track)[page_type];;
     // Compute the max words that could already be used while satisfying the request.
@@ -506,7 +506,7 @@ bool page_is_zeroed(page_index_t page)
 #endif
 
 static void*
-gc_alloc_new_region(sword_t nbytes, TRACK_ARG(track_t track) int page_type, struct alloc_region *alloc_region, int unlock)
+gc_alloc_new_region(sword_t nbytes, TRACK_ARG(track_index_t track) int page_type, struct alloc_region *alloc_region, int unlock)
 {
     /* Check that the region is in a reset state. */
     gc_dcheck(!alloc_region->start_addr);
@@ -704,7 +704,7 @@ gc_close_region(struct alloc_region *alloc_region, int page_type)
     // Mark the region as closed on its first page.
     page_table[first_page].type = type ^ OPEN_REGION_PAGE_FLAG;
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-    track_t track = PAGE_TRACK(first_page);
+    track_index_t track = PAGE_TRACK(first_page);
 #endif
 
     page_index_t next_page = first_page+1;
@@ -792,7 +792,7 @@ gc_close_region(struct alloc_region *alloc_region, int page_type)
 }
 
 /* Allocate a possibly large object. */
-void *gc_alloc_large(sword_t nbytes, TRACK_ARG(track_t track) int page_type)
+void *gc_alloc_large(sword_t nbytes, TRACK_ARG(track_index_t track) int page_type)
 {
     page_index_t first_page, last_page;
     // Large BOXED would serve no purpose beyond MIXED, and "small large" is illogical.
@@ -891,7 +891,7 @@ void *gc_alloc_large(sword_t nbytes, TRACK_ARG(track_t track) int page_type)
  */
 page_index_t
 gc_find_freeish_pages(page_index_t *restart_page_ptr, sword_t nbytes,
-                      TRACK_ARG(track_t track) int page_type, generation_index_t gen)
+                      TRACK_ARG(track_index_t track) int page_type, generation_index_t gen)
 {
     page_index_t most_bytes_found_from = 0, most_bytes_found_to = 0;
     page_index_t first_page, last_page, restart_page = *restart_page_ptr;
@@ -1004,7 +1004,7 @@ gc_find_freeish_pages(page_index_t *restart_page_ptr, sword_t nbytes,
  * Choice 2 is better because choice 1 makes an extra test for page_type
  * in each call to gc_general_alloc.
  */
-static void *new_region(struct alloc_region* region, sword_t nbytes, TRACK_ARG(track_t track) int page_type)
+static void *new_region(struct alloc_region* region, sword_t nbytes, TRACK_ARG(track_index_t track) int page_type)
 {
     ensure_region_closed(region, page_type);
     void* new_obj = gc_alloc_new_region(nbytes, TRACK_ARG(track) page_type, region, 0);
@@ -1012,7 +1012,7 @@ static void *new_region(struct alloc_region* region, sword_t nbytes, TRACK_ARG(t
     gc_assert(region->free_pointer <= region->end_addr);
     return new_obj;
 }
-void *collector_alloc_fallback(struct alloc_region* region, sword_t nbytes, TRACK_ARG(track_t track) int page_type)
+void *collector_alloc_fallback(struct alloc_region* region, sword_t nbytes, TRACK_ARG(track_index_t track) int page_type)
 {
     /* If this is a normal GC - as opposed to "final" GC just prior to saving
      * a core, then we should never copy a large object (not that that's the best
@@ -1140,7 +1140,7 @@ void *collector_alloc_fallback(struct alloc_region* region, sword_t nbytes, TRAC
 static uword_t adjust_obj_ptes(page_index_t first_page,
                                sword_t nwords,
                                generation_index_t new_gen,
-                               TRACK_ARG(track_t new_track)
+                               TRACK_ARG(track_index_t new_track)
                                int new_allocated)
 {
     int old_allocated = page_table[first_page].type;
@@ -1282,7 +1282,7 @@ copy_potential_large_object(lispobj object, sword_t nwords,
     first_page = find_page_index((void *)object);
     gc_dcheck(first_page >= 0);
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-    track_t track = PAGE_TRACK(first_page);
+    track_index_t track = PAGE_TRACK(first_page);
 #endif
     os_vm_size_t nbytes = nwords * N_WORD_BYTES;
     os_vm_size_t rounded = ALIGN_UP(nbytes, GENCGC_PAGE_BYTES);
@@ -4178,7 +4178,7 @@ lisp_alloc(int flags, struct alloc_region *region, sword_t nbytes,
            int page_type, struct thread *thread)
 {
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-    track_t track = thread->track;
+    track_index_t track = thread->track;
     gc_assert((int)track < TRACKS_END);
 #endif
 

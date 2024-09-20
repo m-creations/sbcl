@@ -1003,7 +1003,7 @@ bool gc_allocate_ptes()
      *   it corresponds to no page)
      */
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-    page_tracks = calloc(page_table_pages+2, sizeof(track_t));
+    page_tracks = calloc(page_table_pages+2, sizeof(track_index_t));
     gc_assert(page_tracks);
     page_index_t page = 0;
     while (page < page_table_pages) {

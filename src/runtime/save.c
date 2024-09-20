@@ -627,7 +627,7 @@ static void prepare_dynamic_space_for_final_gc(struct thread* thread)
             page_table[i].type = PAGE_TYPE_MIXED;
 #endif
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-        track_t track = PAGE_TRACK(i);
+        track_index_t track = PAGE_TRACK(i);
         if (track != DEFAULT_TRACK) {
             PAGE_TRACK_SET(i, DEFAULT_TRACK);
         }
