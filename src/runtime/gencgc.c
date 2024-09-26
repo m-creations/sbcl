@@ -5159,6 +5159,11 @@ count_generation_pages(generation_index_t generation, page_index_t* n_dirty)
     return total;
 }
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+// Set this to 0 to suppress extra track stats.
+int gc_track_report_enabled = 1;
+#endif
+
 // You can call this with 0 and NULL to perform its assertions silently
 void gc_gen_report_to_file(int filedes, FILE *file)
 {
@@ -5206,6 +5211,10 @@ void gc_gen_report_to_file(int filedes, FILE *file)
     page_index_t coltot[9];
     uword_t eden_words_allocated = 0;
     page_index_t eden_pages = 0;
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+    page_index_t tr_tot[TRACKS_END][9+(end+1)];
+    memset(tr_tot, 0, sizeof(tr_tot));
+#endif
     memset(coltot, 0, sizeof coltot);
     for (gen_num = begin; gen_num <= end; gen_num++) {
         page_index_t page;
@@ -5225,6 +5234,11 @@ void gc_gen_report_to_file(int filedes, FILE *file)
                     }
                     pagect[column]++;
                     coltot[column]++;
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+                    track_index_t tr = page_tracks[page];
+                    tr_tot[tr][column]++;
+                    tr_tot[tr][9+gen_num]++;
+#endif
                     ++eden_pages;
                     eden_words_allocated += page_words_used(page);
                 }
@@ -5264,6 +5278,11 @@ void gc_gen_report_to_file(int filedes, FILE *file)
                 }
                 pagect[column]++;
                 coltot[column]++;
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+                track_index_t tr = page_tracks[page];
+                tr_tot[tr][column]++;
+                tr_tot[tr][9+gen_num]++;
+#endif
                 ++tot_pages;
                 words_allocated += page_words_used(page);
             }
@@ -5284,7 +5303,7 @@ void gc_gen_report_to_file(int filedes, FILE *file)
           (double)waste / (double)npage_bytes(tot_pages) * 100 : 0.0;
         int linelen =
             snprintf(linebuf, sizeof linebuf,
-                "  %d %6d %6d %6d"
+                "   %d %6d %6d %6d"
                 "%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT
                 "%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT
                 "%7"PAGE_INDEX_FMT" %6.1f %11"OS_VM_SIZE_FMT" %11"OS_VM_SIZE_FMT,
@@ -5308,7 +5327,7 @@ void gc_gen_report_to_file(int filedes, FILE *file)
     int *objct = immobile_totals;
     int linelen =
         snprintf(linebuf, sizeof linebuf,
-            "Tot %6d %6d %6d"
+            " Tot %6d %6d %6d"
             "%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT
             "%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT
             "%7"PAGE_INDEX_FMT" %6.1f%12"OS_VM_SIZE_FMT
@@ -5318,6 +5337,45 @@ void gc_gen_report_to_file(int filedes, FILE *file)
             coltot[7], coltot[8], pct_waste,
             (uintptr_t)bytes_allocated, heap_use_frac, (uintptr_t)dynamic_space_size);
     OUTPUT(linebuf, linelen);
+
+    /* Print the track stats. */
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+    if (!gc_track_report_enabled) return;
+    linelen =
+        snprintf(linebuf, sizeof linebuf,
+            "\n Track                     Boxed   Cons    Raw   Code  SmMix  Mixed  LgRaw LgCode  LgMix |");
+    for (gen_num = 0; gen_num <= end; gen_num++) {
+        linelen += snprintf(linebuf+linelen, sizeof linebuf-linelen,
+                            "   Gen%d", gen_num);
+    }
+    linelen += snprintf(linebuf+linelen, sizeof linebuf-linelen, "\n");
+    OUTPUT(linebuf, linelen);
+    for (int tr = 0; tr < TRACKS_END; tr++) {
+        page_index_t tr_tot_pages =
+            tr_tot[tr][0] + tr_tot[tr][1] + tr_tot[tr][2] + tr_tot[tr][3] + tr_tot[tr][4] +
+            tr_tot[tr][5] + tr_tot[tr][6] + tr_tot[tr][7] + tr_tot[tr][8];
+        if (tr_tot_pages > 0) {
+            int linelen =
+                snprintf(linebuf, sizeof linebuf,
+                    "  %02x                     "
+                    "%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT
+                    "%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT
+                    "%7"PAGE_INDEX_FMT" |",
+                    tr,
+                    tr_tot[tr][0], tr_tot[tr][1], tr_tot[tr][2], tr_tot[tr][3], tr_tot[tr][4],
+                    tr_tot[tr][5], tr_tot[tr][6], tr_tot[tr][7], tr_tot[tr][8]);
+            for (gen_num = 0; gen_num <= end; gen_num++) {
+                linelen += snprintf(linebuf+linelen, sizeof linebuf-linelen,
+                                    "%7"PAGE_INDEX_FMT, tr_tot[tr][9+gen_num]);
+            }
+            linelen += snprintf(linebuf+linelen, sizeof linebuf-linelen, "\n");
+            OUTPUT(linebuf, linelen);
+        }
+    }
+    linelen = snprintf(linebuf, sizeof linebuf, "\n");
+    OUTPUT(linebuf, linelen);
+#endif
+
 #undef OUTPUT
 
 #ifdef LISP_FEATURE_X86
