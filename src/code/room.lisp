@@ -358,10 +358,48 @@ We could try a few things to mitigate this:
 ;;; guaranteed to visit all chosen objects) despite other threads running.
 ;;; As things are it is only "maybe" reliable, regardless of the parameters.
 (defun walk-dynamic-space (fun generation-mask
-                               page-type-mask page-type-constraint)
+                               page-type-mask page-type-constraint
+                               #+allocation-tracks &optional #+allocation-tracks track-selection)
   (declare (function fun)
            (type (unsigned-byte 7) generation-mask)
-           (type (unsigned-byte 5) page-type-mask page-type-constraint))
+           (type (unsigned-byte 5) page-type-mask page-type-constraint)
+           #+allocation-tracks
+           (type (or null cons fixnum simple-bit-vector (function (fixnum) t)) track-selection))
+
+  (flet (#+allocation-tracks
+         (_page-track-selected-p (page-index)
+           (or (null track-selection)
+               (let ((track (deref page-tracks page-index)))
+                 (etypecase track-selection
+                   (cons
+                    (some #'(lambda (tr)
+                              (etypecase tr
+                                (fixnum (eql tr track))
+                                (cons (<= (car tr) track (cdr tr)))))
+                          track-selection))
+                   (fixnum
+                    (cond ((<= 0 track-selection (1- +tracks-end+))
+                           (eql track-selection track))
+                          ;; poor man's bit-vector, for sets of tracks below (1- n-fixnum-bits)
+                          ((minusp track-selection)
+                           (and (< track (1- n-fixnum-bits))
+                                (logbitp track track-selection)))
+                          (t
+                           ;; multiple tracks from the fixnum's full bytes
+                           ;; (the count is variable, hence 0 can't be the highest byte)
+                           (loop
+                             :with mask := (1- (ash 1 +track-bits+))
+                             :with tr := track-selection
+                             :while (plusp tr)
+                             :when (eql track (logand tr mask))
+                               :do (return t)
+                             :else
+                               :do (setf tr (ash tr (- +track-bits+)))))))
+                   (simple-bit-vector
+                    (plusp (aref track-selection track)))
+                   (function
+                    (funcall track-selection track)))))))
+
        ;; Dynamic space on gencgc requires walking the GC page tables
        ;; in order to determine what regions contain objects.
 
@@ -420,7 +458,8 @@ We could try a few things to mitigate this:
           #-mark-region-gc
           (when (and (logbitp (logand (slot (deref page-table start-page) 'gen) 7)
                               generation-mask)
-                     (= (logand flags page-type-mask) page-type-constraint))
+                     (= (logand flags page-type-mask) page-type-constraint)
+                     #+allocation-tracks (_page-track-selected-p start-page))
             ;; FIXME: should exclude (0 . 0) conses on PAGE_TYPE_{BOXED,UNBOXED}
             ;; resulting from zeroing the tail of a bignum or vector etc.
             (map-objects-in-range
@@ -431,13 +470,14 @@ We could try a few things to mitigate this:
           ;; Generations of pages are basically meaningless (except
           ;; for pseudo-static pages) so we test generations of lines.
           #+mark-region-gc
-          (when (= (logand flags page-type-mask) page-type-constraint)
+          (when (and (= (logand flags page-type-mask) page-type-constraint)
+                     #+allocation-tracks (_page-track-selected-p start-page))
             (map-objects-in-discontiguous-range
              fun
              (%make-lisp-obj (sap-int start))
              (%make-lisp-obj (sap-int end))
              generation-mask)))))
-    (setq start-page (1+ end-page))))
+    (setq start-page (1+ end-page)))))
 
 ;; Users are often surprised to learn that a just-consed object can't
 ;; necessarily be seen by MAP-ALLOCATED-OBJECTS, so close the region
