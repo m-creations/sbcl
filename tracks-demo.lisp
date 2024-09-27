@@ -71,12 +71,13 @@
 (defun page-bits-to-kind (bits)
   (cdr (assoc (logand bits 7) +page-bits-to-kind+)))
 
-(defmacro do-pages ((i page) &body body)
-  (let ((total-pages (gensym "TOTAL-PAGES")))
-    `(let ((,total-pages sb-vm:next-free-page))
-       (dotimes (,i ,total-pages)
-         (let ((,page (deref page-table ,i)))
-           ,@body)))))
+(unless (fboundp 'do-pages)
+  (defmacro do-pages ((i page) &body body)
+    (let ((total-pages (gensym "TOTAL-PAGES")))
+      `(let ((,total-pages sb-vm:next-free-page))
+         (dotimes (,i ,total-pages)
+           (let ((,page (deref page-table ,i)))
+             ,@body))))))
 
 (defparameter *dynamic-col-keys*
   #(((:boxed)       "Boxed")
