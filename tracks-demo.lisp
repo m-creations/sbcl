@@ -1,6 +1,8 @@
 
 (in-package :cl-user)
 
+(setf (gc-logfile) "/tmp/gc-log.txt")
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (when (find-symbol "PAGE-TRACKS" :sb-vm)
     (pushnew :allocation-tracks *features*)))
