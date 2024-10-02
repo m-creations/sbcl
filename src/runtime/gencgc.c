@@ -5106,7 +5106,7 @@ void gc_gen_report_to_file(int filedes, FILE *file)
     if (!gc_track_report_enabled) return;
     linelen =
         snprintf(linebuf, sizeof linebuf,
-            "\n Track                     Boxed   Cons    Raw   Code  SmMix  Mixed  LgRaw LgCode  LgMix |");
+            "\n Track              MiB |  Boxed   Cons    Raw   Code  SmMix  Mixed  LgRaw LgCode  LgMix |");
     for (gen_num = 0; gen_num <= end; gen_num++) {
         linelen += snprintf(linebuf+linelen, sizeof linebuf-linelen,
                             "   Gen%d", gen_num);
@@ -5120,11 +5120,13 @@ void gc_gen_report_to_file(int filedes, FILE *file)
         if (tr_tot_pages > 0) {
             int linelen =
                 snprintf(linebuf, sizeof linebuf,
-                    "  %02x                     "
+                    "  %02x  %5.1f%% %10.1f |"
                     "%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT
                     "%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT"%7"PAGE_INDEX_FMT
                     "%7"PAGE_INDEX_FMT" |",
                     tr,
+                    (double)100.0 * tr_tot_pages / tot_pages,
+                    (double)1.0 * npage_bytes(tr_tot_pages) / (1024 * 1024),
                     tr_tot[tr][0], tr_tot[tr][1], tr_tot[tr][2], tr_tot[tr][3], tr_tot[tr][4],
                     tr_tot[tr][5], tr_tot[tr][6], tr_tot[tr][7], tr_tot[tr][8]);
             for (gen_num = 0; gen_num <= end; gen_num++) {
