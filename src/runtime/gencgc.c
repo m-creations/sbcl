@@ -4977,6 +4977,8 @@ void gc_gen_report_to_file(int filedes, FILE *file)
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
     page_index_t tr_tot[TRACKS_END][9+(end+1)];
     memset(tr_tot, 0, sizeof(tr_tot));
+    uword_t tr_words_allocated[TRACKS_END];
+    memset(tr_words_allocated, 0, sizeof(tr_words_allocated));
 #endif
     memset(coltot, 0, sizeof coltot);
     for (gen_num = begin; gen_num <= end; gen_num++) {
@@ -5001,6 +5003,7 @@ void gc_gen_report_to_file(int filedes, FILE *file)
                     track_index_t tr = page_tracks[page];
                     tr_tot[tr][column]++;
                     tr_tot[tr][9+gen_num]++;
+                    tr_words_allocated[tr] += page_words_used(page);
 #endif
                     ++eden_pages;
                     eden_words_allocated += page_words_used(page);
@@ -5045,6 +5048,7 @@ void gc_gen_report_to_file(int filedes, FILE *file)
                 track_index_t tr = page_tracks[page];
                 tr_tot[tr][column]++;
                 tr_tot[tr][9+gen_num]++;
+                tr_words_allocated[tr] += page_words_used(page);
 #endif
                 ++tot_pages;
                 words_allocated += page_words_used(page);
