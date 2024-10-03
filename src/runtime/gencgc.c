@@ -5383,6 +5383,51 @@ void gc_gen_report_to_file(int filedes, FILE *file)
     }
     linelen = snprintf(linebuf, sizeof linebuf, "\n");
     OUTPUT(linebuf, linelen);
+    linelen = snprintf(linebuf, sizeof linebuf, "  Thread  Track  State   TotBytesAlloc         Boxed         Cons        Mixed       Symbol     SysMixed      SysCons\n");
+    OUTPUT(linebuf, linelen);
+    struct thread *th;
+    for (th = all_threads; th != NULL; th = th->next) {
+        if (1/*th->state_word.state == STATE_STOPPED*/) {
+            int linelen =
+                snprintf(linebuf, sizeof linebuf,
+                         "%8ld    %02lx     %02x    %13ld  %12p %12p %12p %12p %12p %12p\n",
+                         th->os_kernel_tid,
+                         th->track,
+                         th->state_word.state, /* value 2 = :stopped */
+                         ((uintptr_t)th->tot_bytes_alloc_boxed >> N_FIXNUM_TAG_BITS) +
+                         ((uintptr_t)th->tot_bytes_alloc_unboxed >> N_FIXNUM_TAG_BITS),
+                         th->boxed_tlab.start_addr,
+                         th->cons_tlab.start_addr,
+                         th->mixed_tlab.start_addr,
+                         th->symbol_tlab.start_addr,
+                         th->sys_mixed_tlab.start_addr,
+                         th->sys_cons_tlab.start_addr);
+            OUTPUT(linebuf, linelen);
+            linelen =
+                snprintf(linebuf, sizeof linebuf,
+                         "                                        %12p %12p %12p %12p %12p %12p\n",
+                         th->boxed_tlab.free_pointer,
+                         th->cons_tlab.free_pointer,
+                         th->mixed_tlab.free_pointer,
+                         th->symbol_tlab.free_pointer,
+                         th->sys_mixed_tlab.free_pointer,
+                         th->sys_cons_tlab.free_pointer);
+            OUTPUT(linebuf, linelen);
+            linelen =
+                snprintf(linebuf, sizeof linebuf,
+                         "                                        %12p %12p %12p %12p %12p %12p\n",
+                         th->boxed_tlab.end_addr,
+                         th->cons_tlab.end_addr,
+                         th->mixed_tlab.end_addr,
+                         th->symbol_tlab.end_addr,
+                         th->sys_mixed_tlab.end_addr,
+                         th->sys_cons_tlab.end_addr);
+            OUTPUT(linebuf, linelen);
+
+        }
+    }
+    linelen = snprintf(linebuf, sizeof linebuf, "\n");
+    OUTPUT(linebuf, linelen);
 #endif
 
 #undef OUTPUT
