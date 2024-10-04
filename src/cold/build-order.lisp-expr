@@ -558,6 +558,7 @@
  ;; defines SB-DI:DO-DEBUG-FUN-BLOCKS, needed by target-disassem.lisp
  ("src/code/debug-int" :not-host)
  ("src/code/gc"                :not-host)
+ #+allocation-tracks ("src/code/tracks" :not-host)
 
  ("src/code/interr" :not-host)
 

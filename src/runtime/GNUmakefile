@@ -79,6 +79,10 @@ COMMON_SRC = alloc.c arena.c backtrace.c breakpoint.c coalesce.c	\
 	sc-offset.c search.c stringspace.c thread.c time.c              \
 	validate.c var-io.c vars.c wrap.c
 
+ifdef LISP_FEATURE_ALLOCATION_TRACKS
+COMMON_SRC += tracks.c
+endif
+
 ifndef LISP_FEATURE_WIN32
 COMMON_SRC += run-program.c sprof.c
 endif
