@@ -13,6 +13,7 @@
 #define _SBCL_RUNTIME_H_
 
 #include "lispobj.h"
+#include "tracks.h"
 
 #ifdef LISP_FEATURE_WIN32
 # include "pthreads_win32.h"
