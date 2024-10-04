@@ -75,7 +75,7 @@
            ;; I would argue that this should not be exposed,
            ;; but I would also anticipate blowback from removing it.
            :GENCGC :MARK-REGION-GC ; GC: pick one and only one
-           :ARENA-ALLOCATOR :ALLOCATION-SIZE-HISTOGRAM
+           :ARENA-ALLOCATOR :ALLOCATION-SIZE-HISTOGRAM :ALLOCATION-TRACKS
            ;; Can't use s-l-a-d :compression safely without it
            :SB-CORE-COMPRESSION
            ;; Features that are also in *FEATURES-POTENTIALLY-AFFECTING-FASL-FORMAT*
