@@ -268,7 +268,7 @@ static lispobj cons_lisp_thread(struct thread* thread)
     struct alloc_region* r = THREAD_ALLOC_REGION(thread, mixed);
     struct thread_instance* instance
         = (void*)gc_general_alloc(r, ALIGN_UP(sizeof (struct thread), 2*N_WORD_BYTES),
-                                  PAGE_TYPE_MIXED);
+                                  TRACK_ARG(DEFAULT_TRACK) PAGE_TYPE_MIXED);
     int payload_len = (sizeof *instance >> WORD_SHIFT) - 1;
     instance->header = (payload_len << INSTANCE_LENGTH_SHIFT) | INSTANCE_WIDETAG;
     instance->_name = NIL;
@@ -289,7 +289,7 @@ static lispobj cons_lisp_thread(struct thread* thread)
     instance->alloc_histogram = NIL;
 #ifdef LISP_FEATURE_X86_64
     struct vector* v = (void*)gc_general_alloc(r, (2+ALLOC_HISTOGRAM_WORDS)*N_WORD_BYTES,
-                                               PAGE_TYPE_MIXED);
+                                               TRACK_ARG(DEFAULT_TRACK) PAGE_TYPE_MIXED);
     v->header = SIMPLE_ARRAY_UNSIGNED_BYTE_64_WIDETAG;
     v->length_ = make_fixnum(ALLOC_HISTOGRAM_WORDS);
     instance->alloc_histogram = make_lispobj(v, OTHER_POINTER_LOWTAG);
