@@ -32,7 +32,7 @@ void test_find_freeish()
     int i;
     for(i=0; i<100;++i) {
         int chunk = N_WORD_BYTES*40;
-        gc_alloc_new_region(chunk, PAGE_TYPE_BOXED, &r, 0);
+        gc_alloc_new_region(chunk, TRACK_ARG(DEFAULT_TRACK) PAGE_TYPE_BOXED, &r, 0);
         tot_bytes += chunk;
         r.free_pointer = (char*)r.free_pointer + chunk;
         int count_open_region_pages = 0, j;
@@ -155,7 +155,8 @@ void shrink_obj_test(int ending_size, int initial_type,
                 sword_t freed = adjust_obj_ptes(find_page_index(result),
                                                 ending_size/N_WORD_BYTES,
                                                 SCRATCH_GENERATION,
-                                                SINGLE_OBJECT_FLAG | PAGE_TYPE_UNBOXED);
+                                                SINGLE_OBJECT_FLAG | PAGE_TYPE_UNBOXED,
+                                                0);
 
                 // After changing the size, all pages should have the correct
                 // number of bytes used, and the bytes freed should be as expected.
