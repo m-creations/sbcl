@@ -24,6 +24,7 @@
 #define DEFAULT_TRACK 0
 #define UNUSED_TRACK (TRACKS_END - 1)
 #define INITIAL_TRACK DEFAULT_TRACK
+#define PRIVATE_CONS_TRACK UNUSED_TRACK
 #endif
 
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
@@ -41,6 +42,12 @@
 #else
 #define PAGE_TRACK(page)
 #define PAGE_TRACK_SET(page, tr)
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define TRACK_ARG(arg)  arg,
+#else
+#define TRACK_ARG(arg)
 #endif
 
 #endif /* _TRACKS_H_ */
