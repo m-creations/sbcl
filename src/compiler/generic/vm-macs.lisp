@@ -19,6 +19,7 @@
 (defconstant +default-track+ 0)
 (defconstant +unused-track+ (- +tracks-end+ 1))
 (defconstant +initial-track+ +default-track+)
+(defconstant +private-cons-track+ +unused-track+)
 
 ;;;; Arenas
 (defmacro thread-current-arena ()
