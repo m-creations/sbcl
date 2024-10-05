@@ -99,8 +99,8 @@ struct extra_thread_data
     void* zstd_dcontext;
     // These values influence get_alloc_start_page() when arenas are in use
     // and allocation switches back and forth between arena and heap.
-    page_index_t mixed_page_hint;
-    page_index_t cons_page_hint;
+    page_index_t WITH_TRACK_INDEX(mixed_page_hint,TRACKS_END);
+    page_index_t WITH_TRACK_INDEX(cons_page_hint,TRACKS_END);
 };
 #define thread_extra_data(thread) \
   ((struct extra_thread_data*)((char*)(thread) + dynamic_values_bytes))
