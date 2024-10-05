@@ -82,13 +82,13 @@ static struct cons* private_cons_impl()
          * Probably not this though. */
         if (page == -1) lose("Ran out of pages for GC-private conses");
 #else
-        page = get_alloc_start_page(PAGE_TYPE_UNBOXED);
+        page = get_alloc_start_page(TRACK_ARG(PRIVATE_CONS_TRACK) PAGE_TYPE_UNBOXED);
         page_index_t last_page __attribute__((unused)) =
-            gc_find_freeish_pages(&page, GENCGC_PAGE_BYTES,
+            gc_find_freeish_pages(&page, GENCGC_PAGE_BYTES, TRACK_ARG(PRIVATE_CONS_TRACK)
                                   SINGLE_OBJECT_FLAG | PAGE_TYPE_UNBOXED,
                                   GC_PRIVATE_CONS_GENERATION);
         // See question about last_page in gc_alloc_large
-        set_alloc_start_page(PAGE_TYPE_UNBOXED, page);
+        set_alloc_start_page(TRACK_ARG(PRIVATE_CONS_TRACK) PAGE_TYPE_UNBOXED, page);
         gc_assert(last_page == page);
 #endif
         page_table[page].gen = GC_PRIVATE_CONS_GENERATION;
