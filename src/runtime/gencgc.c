@@ -341,14 +341,14 @@ get_alloc_start_page(TRACK_ARG(track_index_t tr) unsigned int page_type)
     page_index_t hint;
     switch (page_type) {
     case PAGE_TYPE_MIXED:
-        if ((hint = thread_extra_data(th)->mixed_page_hint) > 0 && hint <= global_start) {
-            thread_extra_data(th)->mixed_page_hint = - 1;
+        if ((hint = WITH_TRACK_INDEX(thread_extra_data(th)->mixed_page_hint,tr)) > 0 && hint <= global_start) {
+            WITH_TRACK_INDEX(thread_extra_data(th)->mixed_page_hint,tr) = - 1;
             return hint;
         }
         break;
     case PAGE_TYPE_CONS:
-        if ((hint = thread_extra_data(th)->cons_page_hint) > 0 && hint <= global_start) {
-            thread_extra_data(th)->cons_page_hint = - 1;
+        if ((hint = WITH_TRACK_INDEX(thread_extra_data(th)->cons_page_hint,tr)) > 0 && hint <= global_start) {
+            WITH_TRACK_INDEX(thread_extra_data(th)->cons_page_hint,tr) = - 1;
             return hint;
         }
         break;
