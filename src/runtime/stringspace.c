@@ -324,7 +324,8 @@ void move_rospace_to_dynamic(__attribute__((unused)) int print)
     sword_t nwords;
     for ( ; where < read_only_space_free_pointer ; where += nwords, shadow_cursor += nwords ) {
         nwords = headerobj_size(where);
-        lispobj *new = gc_general_alloc(unboxed_region, nwords*N_WORD_BYTES, PAGE_TYPE_BOXED);
+        lispobj *new = gc_general_alloc(unboxed_region, nwords*N_WORD_BYTES,
+                                        TRACK_ARG(DEFAULT_TRACK) PAGE_TYPE_BOXED);
         SET_ALLOCATED_BIT(new);
         memcpy(new, where, nwords*N_WORD_BYTES);
         *shadow_cursor = make_lispobj(new, OTHER_POINTER_LOWTAG);
