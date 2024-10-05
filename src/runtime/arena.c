@@ -190,8 +190,8 @@ void switch_to_arena(lispobj arena_taggedptr)
             arena_chain = arena_taggedptr;
         }
         // Close only the non-system regions
-        extra_data->mixed_page_hint = close_heap_region(&th->mixed_tlab, PAGE_TYPE_MIXED);
-        extra_data->cons_page_hint = close_heap_region(&th->cons_tlab, PAGE_TYPE_CONS);
+        WITH_TRACK_INDEX(extra_data->mixed_page_hint,th->track) = close_heap_region(&th->mixed_tlab, PAGE_TYPE_MIXED);
+        WITH_TRACK_INDEX(extra_data->cons_page_hint,th->track) = close_heap_region(&th->cons_tlab, PAGE_TYPE_CONS);
         release_gc_page_table_lock();
 #if 0 // this causes a data race, the very thing it's trying to avoid
         int arena_index = fixnum_value(arena->index);
