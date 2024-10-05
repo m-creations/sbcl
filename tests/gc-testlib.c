@@ -17,7 +17,7 @@ static void make_instances(int page_type, generation_index_t gen, lispobj result
 {
     page_index_t page = 0, last;
     // Passing SINGLE_OBJECT_FLAG avoids combining with a previous page
-    last = gc_find_freeish_pages(&page, GENCGC_PAGE_BYTES,
+    last = gc_find_freeish_pages(&page, GENCGC_PAGE_BYTES, DEFAULT_TRACK,
                                  SINGLE_OBJECT_FLAG | page_type, gen);
     gc_assert(last == page);
     lispobj* where = (void*)page_address(page);
