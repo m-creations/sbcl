@@ -294,7 +294,7 @@ __attribute__((unused)) static const char * const page_type_description[8] =
 struct alloc_region gc_alloc_region[6];
 
 static page_index_t
-  alloc_start_pages[8], // one for each value of PAGE_TYPE_x
+  WITH_TRACK_INDEX(alloc_start_pages,TRACKS_END)[8], // one for each combination (tr, PAGE_TYPE_x)
   max_alloc_start_page; // the largest of any array element
 page_index_t gencgc_alloc_start_page; // initializer for the preceding array
 
@@ -307,23 +307,37 @@ page_index_t gencgc_alloc_start_page; // initializer for the preceding array
  * It's kind of dumb that there is one start_page per type,
  * other than it serves its purpose for picking up where it left off
  * on a partially full page during GC */
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
 #define RESET_ALLOC_START_PAGES() \
-        alloc_start_pages[0] = gencgc_alloc_start_page; \
-        alloc_start_pages[1] = gencgc_alloc_start_page; \
-        alloc_start_pages[2] = gencgc_alloc_start_page; \
-        alloc_start_pages[3] = gencgc_alloc_start_page; \
-        alloc_start_pages[4] = gencgc_alloc_start_page; \
-        alloc_start_pages[5] = gencgc_alloc_start_page; \
-        alloc_start_pages[6] = gencgc_alloc_start_page; \
-        alloc_start_pages[7] = gencgc_alloc_start_page; \
+        for(int tr = 0; tr < TRACKS_END; ++tr) {                      \
+            alloc_start_pages[tr][0] = gencgc_alloc_start_page;       \
+            alloc_start_pages[tr][1] = gencgc_alloc_start_page;       \
+            alloc_start_pages[tr][2] = gencgc_alloc_start_page;       \
+            alloc_start_pages[tr][3] = gencgc_alloc_start_page;       \
+            alloc_start_pages[tr][4] = gencgc_alloc_start_page;       \
+            alloc_start_pages[tr][5] = gencgc_alloc_start_page;       \
+            alloc_start_pages[tr][6] = gencgc_alloc_start_page;       \
+            alloc_start_pages[tr][7] = gencgc_alloc_start_page;       \
+        }                                                             \
         max_alloc_start_page = gencgc_alloc_start_page;
-
+#else
+#define RESET_ALLOC_START_PAGES() \
+        alloc_start_pages[0] = gencgc_alloc_start_page;             \
+        alloc_start_pages[1] = gencgc_alloc_start_page;             \
+        alloc_start_pages[2] = gencgc_alloc_start_page;             \
+        alloc_start_pages[3] = gencgc_alloc_start_page;             \
+        alloc_start_pages[4] = gencgc_alloc_start_page;             \
+        alloc_start_pages[5] = gencgc_alloc_start_page;             \
+        alloc_start_pages[6] = gencgc_alloc_start_page;             \
+        alloc_start_pages[7] = gencgc_alloc_start_page;             \
+        max_alloc_start_page = gencgc_alloc_start_page;
+#endif
 static page_index_t
 get_alloc_start_page(TRACK_ARG(track_index_t tr) unsigned int page_type)
 {
     if (page_type > 7) lose("bad page_type: %d", page_type);
     struct thread* th = get_sb_vm_thread();
-    page_index_t global_start = alloc_start_pages[page_type];
+    page_index_t global_start = WITH_TRACK_INDEX(alloc_start_pages,tr)[page_type];
     page_index_t hint;
     switch (page_type) {
     case PAGE_TYPE_MIXED:
@@ -347,7 +361,7 @@ set_alloc_start_page(TRACK_ARG(track_index_t tr) unsigned int page_type, page_in
 {
     if (page_type > 7) lose("bad page_type: %d", page_type);
     if (page > max_alloc_start_page) max_alloc_start_page = page;
-    alloc_start_pages[page_type] = page;
+    WITH_TRACK_INDEX(alloc_start_pages,tr)[page_type] = page;
 }
 #include "private-cons.inc"
 
@@ -424,7 +438,7 @@ void gc_heap_exhausted_error_or_lose (sword_t available, sword_t requested) neve
  * for storing objects, subject to the non-card-spaning constraint. */
 static page_index_t find_single_page(TRACK_ARG(track_index_t tr) int page_type, sword_t nbytes, generation_index_t gen)
 {
-    page_index_t page = alloc_start_pages[page_type];;
+    page_index_t page = WITH_TRACK_INDEX(alloc_start_pages,tr)[page_type];;
     // Compute the max words that could already be used while satisfying the request.
     page_words_t usage_allowance;
     if (page_type == PAGE_TYPE_CONS) {
@@ -442,7 +456,7 @@ static page_index_t find_single_page(TRACK_ARG(track_index_t tr) int page_type, 
      * search loop because it's needless overhead. Any free page would have been returned,
      * so we just have to find the least full page meeting the gen+type criteria */
     sword_t min_used = GENCGC_PAGE_WORDS;
-    for ( page = alloc_start_pages[page_type]; page < page_table_pages ; ++page) {
+    for ( page = WITH_TRACK_INDEX(alloc_start_pages,tr)[page_type]; page < page_table_pages ; ++page) {
         if (page_words_used(page) < min_used && page_extensible_p(page, gen, TRACK_ARG(tr) page_type))
             min_used = page_words_used(page);
     }
