@@ -24,6 +24,17 @@
           ;; track-contents
           merge-track
           merge-current-track
+
+          destroy-track ;; = mark pages as free & zero them (or mark as such)
+          ;;hide-track
+          ;;unhide-track
+          points-to-track
+          ;; c-find-arena->track
+          ;; c-find-other-heap->track
+          ;; c-find-default-track->track
+          ;; show-arena->track
+          ;; show-other-heap->track
+          ;; show-default-track->track
           ))
 
 (defmacro with-track ((track) &body body)
@@ -155,3 +166,69 @@
 
 (defun join-track (tr)
   (merge-track tr :into (thread-current-track)))
+
+;;
+
+(defun %points-to-track (tr addr)
+  (let ((p (find-page-index addr)))
+    (unless (minusp p)
+      (eql tr (deref page-tracks p)))))
+
+(defun points-to-track (tr x)
+  (without-gcing ()
+    (etypecase x
+      (system-area-pointer (%points-to-track tr (sap-int x)))
+      (fixnum (%points-to-track tr x)))))
+
+(defun c-find-arena->track ()
+  )
+
+(defun c-find-other-heap->track ()
+  )
+
+(defun c-find-default-track->track ()
+  )
+
+(defun find-track-ptr (x)
+  (declare (ignore x))
+  (values 0 0)) ;; TBD
+
+(defun show-heap->track (l)
+  (dolist (x l)
+    (cond ((typep x '(cons sb-thread:thread))
+           ;; It's tricky to figure out what a symbol in another thread pointed to,
+           ;; so just show the symbol and hope the user knows what it's for.
+           (format t "~&Symbol ~/sb-ext:print-symbol-with-prefix/~%" (third x)))
+          (t
+           (let ((pointee (nth-value 1 (find-track-ptr x))))
+             (format t "~x -> ~x ~s ~s~%"
+                     (get-lisp-obj-address x)
+                     (get-lisp-obj-address pointee)
+                     (type-of x)
+                     (type-of pointee)))))))
+
+(defun show-arena->track ()
+  )
+
+(defun show-other-heap->track ()
+  )
+
+(defun show-default-track->track ()
+  )
+
+;;
+
+(defun %delete-track-contents (tr)
+  "This UNSAFE operation will DELETE ALL objects allocated on track TR.
+The caller is responsible for ensuring that there aren't any remaining
+pointers from elsewhere to any of those objects. Otherwise bad things
+are bound to happen eventually."
+  (do-track-pages (tr i)
+    (setf (deref page-tracks i) +unused-track+)
+    (let ((page (deref page-table i)))
+      (setf (slot page 'flags) 0 ;; mark as free
+            (slot page 'words-used*) 1)))) ;; need_zerofill
+
+(defun destroy-track (tr)
+  (without-gcing () ;; what else?
+    (%delete-track-contents tr)))
