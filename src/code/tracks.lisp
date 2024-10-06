@@ -11,6 +11,19 @@
           with-track
           call-using-track
           switch-to-track
+          track-pages          ;; = count pages with given track
+          track-bytes-used     ;; = sum over track-pages
+          track-bytes-wasted   ;; = 32k * pages - used
+          ;;track-userdata
+          ;;new-track
+          ;; ;;unuse-track
+          on-same-track
+          do-track-pages     ;; assumes a WITHOUT-GCING context
+          ;;do-track-objects
+          dump-track-objects
+          ;; track-contents
+          merge-track
+          merge-current-track
           ))
 
 (defmacro with-track ((track) &body body)
@@ -39,6 +52,9 @@
         (switch-to-track orig-track)
         (maybe-show-track-switch orig-track track "leave" reason)))))
 
+(define-alien-variable "page_tracks" (* (unsigned 8)))
+(define-alien-variable "page_table" (* (struct page)))
+
 (defun track-of (obj)
   (with-pinned-objects (obj)
     (let ((addr (get-lisp-obj-address obj)))
@@ -46,3 +62,96 @@
       (let ((p (find-page-index addr)))
         (unless (minusp p)
           (deref page-tracks p))))))
+
+(defun on-same-track (obj1 obj2)
+  (eql (track-of obj1)
+       (track-of obj2)))
+
+;;
+
+(define-alien-variable "next_free_page" sb-kernel::page-index-t)
+
+(defmacro do-pages ((i &optional page) &body body)
+  (let ((total-pages (gensym "TOTAL-PAGES")))
+    `(let ((,total-pages next-free-page))
+       (dotimes (,i ,total-pages)
+         (let (,@(when page
+                   `((,page (deref page-table ,i)))))
+           ,@body)))))
+
+(defmacro do-track-pages ((tr i &optional page) &body body)
+  (let ((tr* (gensym "TR")))
+    `(let ((,tr* ,tr))
+       (do-pages (,i)
+         (when (eql ,tr* (deref page-tracks ,i))
+           (let (,@(when page
+                     `((,page (deref page-table ,i)))))
+             ,@body))))))
+
+(defun %track-pages (tr)
+  (let ((pages 0))
+    (declare (type fixnum pages))
+    (do-track-pages (tr i)
+      (incf pages))
+    pages))
+
+(defun track-pages (tr)
+  (without-gcing () ;; is this enough?
+    (%track-pages tr)))
+
+#|
+(macrolet ((aligned-base (blk)
+             `(align-up (sap-int (sap+ ,blk (* 4 n-word-bytes))) 4096)))
+|#
+
+(defun dump-track-objects (tr &aux (tot-size 0))
+  (declare (ignore tr)) #+nil
+  (do-track-pages (tr i page)
+    (let ((from (aligned-base memblk))
+          (to (sap-int (arena-memblk-freeptr memblk))))
+      (format t "~&Page ~6D contents ~X..~X~%" from to)
+      (map-objects-in-range
+       (lambda (obj type size)
+         (declare (ignore type))
+         (incf tot-size size)
+         (format t "~x ~s~%" (get-lisp-obj-address obj) (type-of obj)))
+       (%make-lisp-obj from)
+       (%make-lisp-obj to))))
+  tot-size)
+
+(defun %track-bytes-used (tr)
+  (let ((sum-bytes-used 0))
+    (declare (type fixnum sum-bytes-used))
+    (do-track-pages (tr i)
+      (let* ((page (deref page-table i))
+             (words-used* (slot page 'words-used*))
+             (bytes-used (ash (ash words-used* -1) word-shift)))
+        (incf sum-bytes-used bytes-used)))
+    sum-bytes-used))
+
+(defun track-bytes-used (tr)
+  (without-gcing () ;; is this enough?
+    (%track-bytes-used tr)))
+
+(defun %track-bytes-wasted (tr)
+  (- (* (%track-pages tr) gencgc-page-bytes)
+     (%track-bytes-used tr)))
+
+(defun track-bytes-wasted (tr)
+  (without-gcing () ;; is this enough?
+    (%track-bytes-wasted tr)))
+
+;;
+
+(defun merge-track (tr &key (into +default-track+))
+  ;; FIXME: figure out appropriate locking
+  ;; FIXME: fixup thread->track slots
+  ;; FIXME: think about resetting "hint" pages
+  (do-track-pages (tr i)
+    (setf (deref page-tracks i) into)))
+
+(defun merge-current-track (&key (into +default-track+))
+  (merge-track (thread-current-track) :into into))
+
+(defun join-track (tr)
+  (merge-track tr :into (thread-current-track)))
