@@ -20,6 +20,7 @@
 (defconstant +unused-track+ (- +tracks-end+ 1))
 (defconstant +initial-track+ +default-track+)
 (defconstant +private-cons-track+ +unused-track+)
+(defconstant +reserved-track+ (- +tracks-end+ 2))
 
 ;; Beware: threads have 'track' slots of type machine word.
 ;;
