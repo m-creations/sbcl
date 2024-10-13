@@ -7,6 +7,7 @@
           +unused-track+       ;; = #xff
           +initial-track+      ;; = 0    ;; same as +default-track+
           +private-cons-track+ ;; = #xff ;; same as +unused-track+
+          +reserved-track+     ;; = #xfe
           with-track
           call-using-track
           switch-to-track

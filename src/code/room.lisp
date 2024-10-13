@@ -345,7 +345,13 @@ We could try a few things to mitigate this:
                (map-immobile-objects #'filter :fixed))))))
     (do-rest-arg ((space) spaces)
       (if (eq space :dynamic)
-          (without-gcing (walk-dynamic-space fun #b1111111 0 0))
+          (without-gcing (walk-dynamic-space fun #b1111111 0 0
+                                             #+allocation-tracks ;; TODO: support negation
+                                             (let ((bv (make-array sb-vm:+tracks-end+
+                                                                   :element-type 'bit
+                                                                   :initial-element 1)))
+                                               (setf (aref bv sb-vm:+reserved-track+) 0)
+                                               bv)))
           (do-1-space space)))))
 
 ;;; Using the mask bits you can make many different match conditions resulting
@@ -1188,6 +1194,15 @@ We could try a few things to mitigate this:
   information. If it is NIL, ROOM prints out a minimal amount of
   information. If it is :DEFAULT or it is not supplied, ROOM prints out
   an intermediate amount of information."
+  ;;
+  ;; use reserved allocation track for internal allocations (if available)
+  #-allocation-tracks (%room verbosity)
+  #+allocation-tracks (if (eql 0 (sb-vm:thread-current-arena)) ;; not allocating to an arena
+                          (with-track (sb-vm:+reserved-track+)
+                            (%room verbosity))
+                          (%room verbosity)))
+
+(defun %room (verbosity)
   (fresh-line)
   (ecase verbosity
     ((t)
