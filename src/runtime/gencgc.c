@@ -5380,26 +5380,37 @@ void gc_gen_report_to_file(int filedes, FILE *file)
     }
     linelen = snprintf(linebuf, sizeof linebuf, "\n");
     OUTPUT(linebuf, linelen);
-    linelen = snprintf(linebuf, sizeof linebuf, "  Thread  Track  State   TotBytesAlloc         Boxed         Cons        Mixed       Symbol     SysMixed      SysCons\n");
+    linelen = snprintf(linebuf, sizeof linebuf, "  Thread  Track  State   TotBytesAlloc   TLAB:  Boxed         Cons        Mixed       Symbol     SysMixed      SysCons\n");
     OUTPUT(linebuf, linelen);
     struct thread *th;
     for (th = all_threads; th != NULL; th = th->next) {
         if (1/*th->state_word.state == STATE_STOPPED*/) {
             int linelen =
                 snprintf(linebuf, sizeof linebuf,
-                         "%8ld    %02lx     %02x    %13ld  %12p %12p %12p %12p %12p %12p\n",
+                         "%8ld    %02lx     %02x    %13ld  ",
                          th->os_kernel_tid,
                          th->track,
                          th->state_word.state, /* value 2 = :stopped */
                          ((uintptr_t)th->tot_bytes_alloc_boxed >> N_FIXNUM_TAG_BITS) +
-                         ((uintptr_t)th->tot_bytes_alloc_unboxed >> N_FIXNUM_TAG_BITS),
-                         th->boxed_tlab.start_addr,
-                         th->cons_tlab.start_addr,
-                         th->mixed_tlab.start_addr,
-                         th->symbol_tlab.start_addr,
-                         th->sys_mixed_tlab.start_addr,
-                         th->sys_cons_tlab.start_addr);
+                         ((uintptr_t)th->tot_bytes_alloc_unboxed >> N_FIXNUM_TAG_BITS));
+#define OUTPUT_TLAB(tlab)                                               \
+            if (!(tlab).start_addr) {                                   \
+                linelen += snprintf(linebuf+linelen, sizeof linebuf-linelen, "            -"); \
+            } else {                                                    \
+                page_index_t first_page = find_page_index((tlab).start_addr); \
+                page_index_t last_page = find_page_index((os_vm_address_t)(((uintptr_t) (tlab).end_addr) - N_WORD_BYTES)); \
+                int n_pages = (int)(1 + last_page - first_page);        \
+                linelen += snprintf(linebuf+linelen, sizeof linebuf-linelen, " %11dp", n_pages); \
+            }
+            OUTPUT_TLAB(th->boxed_tlab)
+            OUTPUT_TLAB(th->cons_tlab)
+            OUTPUT_TLAB(th->mixed_tlab)
+            OUTPUT_TLAB(th->symbol_tlab)
+            OUTPUT_TLAB(th->sys_mixed_tlab)
+            OUTPUT_TLAB(th->sys_cons_tlab)
+            linelen += snprintf(linebuf+linelen, sizeof linebuf-linelen, "\n");
             OUTPUT(linebuf, linelen);
+            /*
             linelen =
                 snprintf(linebuf, sizeof linebuf,
                          "                                        %12p %12p %12p %12p %12p %12p\n",
@@ -5410,23 +5421,14 @@ void gc_gen_report_to_file(int filedes, FILE *file)
                          th->sys_mixed_tlab.free_pointer,
                          th->sys_cons_tlab.free_pointer);
             OUTPUT(linebuf, linelen);
-            linelen =
-                snprintf(linebuf, sizeof linebuf,
-                         "                                        %12p %12p %12p %12p %12p %12p\n",
-                         th->boxed_tlab.end_addr,
-                         th->cons_tlab.end_addr,
-                         th->mixed_tlab.end_addr,
-                         th->symbol_tlab.end_addr,
-                         th->sys_mixed_tlab.end_addr,
-                         th->sys_cons_tlab.end_addr);
-            OUTPUT(linebuf, linelen);
-
+            */
         }
     }
     linelen = snprintf(linebuf, sizeof linebuf, "\n");
     OUTPUT(linebuf, linelen);
 #endif
 
+#undef OUTPUT_TLAB
 #undef OUTPUT
 
 #ifdef LISP_FEATURE_X86
