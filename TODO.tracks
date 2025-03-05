@@ -1,5 +1,9 @@
 * [2] preserve current track across save & restart to/from image
 * [5] clean up SWITCH-TO-TRACK as much as possible
+* [6] fix test failures:
+      - compiler-2.pure.lisp / (MAP-ALLOCATED-OBJECTS NO-CONSING)
+      - gc.impure.lisp / M-A-O-THREADLOCALLY-PRECISE
+      - gc.impure.lisp / REPEATABLY-COUNT-ALLOCATED-OBJECTS
 * [7] clean up & extend bookkeeping of bytes_used etc.
 * [9] consolidate user-facing API (safe ops)
 * [10] implement pointer-from-outside detection and DESTROY-TRACK
