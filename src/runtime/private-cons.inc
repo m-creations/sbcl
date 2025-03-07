@@ -74,22 +74,23 @@ static struct cons* private_cons_impl()
         cons = (struct cons*)(page_address(page) + bytes_used);
     } else {
 #ifdef LISP_FEATURE_MARK_REGION_GC
-        struct allocator_state alloc_start = get_alloc_start_page(TRACK_ARG(PRIVATE_CONS_TRACK)
-                                                                  PAGE_TYPE_UNBOXED);
-        page = try_allocate_large(GENCGC_PAGE_BYTES, TRACK_ARG(PRIVATE_CONS_TRACK) PAGE_TYPE_UNBOXED, 0,
+        struct allocator_state alloc_start =
+            get_alloc_start_page(TR_PT_ARG(PRIVATE_CONS_TRACK, PAGE_TYPE_UNBOXED));
+        page = try_allocate_large(GENCGC_PAGE_BYTES, TR_PT_ARG(PRIVATE_CONS_TRACK, PAGE_TYPE_UNBOXED), 0,
                                   &alloc_start, page_table_pages, NULL);
-        set_alloc_start_page(TRACK_ARG(PRIVATE_CONS_TRACK) PAGE_TYPE_UNBOXED, alloc_start);
+        set_alloc_start_page(TR_PT_ARG(PRIVATE_CONS_TRACK, PAGE_TYPE_UNBOXED), alloc_start);
         /* TODO: Should figure out what will trigger "heap exhausted" errors.
          * Probably not this though. */
         if (page == -1) lose("Ran out of pages for GC-private conses");
 #else
-        page = get_alloc_start_page(TRACK_ARG(PRIVATE_CONS_TRACK) PAGE_TYPE_UNBOXED);
+        page = get_alloc_start_page(TR_PT_ARG(PRIVATE_CONS_TRACK, PAGE_TYPE_UNBOXED));
         page_index_t last_page __attribute__((unused)) =
-            gc_find_freeish_pages(&page, GENCGC_PAGE_BYTES, TRACK_ARG(PRIVATE_CONS_TRACK)
-                                  SINGLE_OBJECT_FLAG | PAGE_TYPE_UNBOXED,
+            gc_find_freeish_pages(&page, GENCGC_PAGE_BYTES,
+                                  TR_PT_ARG(PRIVATE_CONS_TRACK,
+                                            SINGLE_OBJECT_FLAG | PAGE_TYPE_UNBOXED),
                                   GC_PRIVATE_CONS_GENERATION);
         // See question about last_page in gc_alloc_large
-        set_alloc_start_page(TRACK_ARG(PRIVATE_CONS_TRACK) PAGE_TYPE_UNBOXED, page);
+        set_alloc_start_page(TR_PT_ARG(PRIVATE_CONS_TRACK, PAGE_TYPE_UNBOXED), page);
         gc_assert(last_page == page);
 #endif
         page_table[page].gen = GC_PRIVATE_CONS_GENERATION;
