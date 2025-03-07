@@ -32,7 +32,7 @@ void test_find_freeish()
     int i;
     for(i=0; i<100;++i) {
         int chunk = N_WORD_BYTES*40;
-        gc_alloc_new_region(chunk, TRACK_ARG(DEFAULT_TRACK) PAGE_TYPE_BOXED, &r, 0);
+        gc_alloc_new_region(chunk, TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_BOXED), &r, 0);
         tot_bytes += chunk;
         r.free_pointer = (char*)r.free_pointer + chunk;
         int count_open_region_pages = 0, j;
