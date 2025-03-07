@@ -345,7 +345,7 @@ void move_rospace_to_dynamic(__attribute__((unused)) int print)
     for ( ; where < read_only_space_free_pointer ; where += nwords, shadow_cursor += nwords ) {
         nwords = headerobj_size(where);
         lispobj *new = gc_general_alloc(unboxed_region, nwords*N_WORD_BYTES,
-                                        TRACK_ARG(DEFAULT_TRACK) PAGE_TYPE_UNBOXED);
+                                        TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_UNBOXED));
         SET_ALLOCATED_BIT(new);
         memcpy(new, where, nwords*N_WORD_BYTES);
         *shadow_cursor = make_lispobj(new, OTHER_POINTER_LOWTAG);
@@ -353,7 +353,7 @@ void move_rospace_to_dynamic(__attribute__((unused)) int print)
     // Make a SAP pointing to null which will become the buffer sap of any fd-stream
     // that did not become garbage in the final GC passes prior to image dump.
     struct sap* nullsap = gc_general_alloc(unboxed_region, SAP_SIZE*N_WORD_BYTES,
-                                            TRACK_ARG(DEFAULT_TRACK) PAGE_TYPE_UNBOXED);
+                                            TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_UNBOXED));
     SET_ALLOCATED_BIT(nullsap);
     nullsap->header = (1 << N_WIDETAG_BITS) | SAP_WIDETAG;
     nullsap->pointer = 0;
