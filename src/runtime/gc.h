@@ -98,7 +98,7 @@ int verify_heap(lispobj*, int flags);
 int hexdump_and_verify_heap(lispobj*, int flags);
 
 page_index_t gc_find_freeish_pages(page_index_t *restart_page_ptr, sword_t nbytes,
-                                   TRACK_ARG(track_index_t tr) int page_type, generation_index_t gen);
+                                   int WITH_TRACK(page_type), generation_index_t gen);
 
 extern void tlsf_dump_pool(void*, void*, char *pathname);
 
