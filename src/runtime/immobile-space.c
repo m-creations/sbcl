@@ -1369,7 +1369,7 @@ void prepare_immobile_space_for_save(bool verbose)
             lose("Didn't reserve enough R/O space?");
     } else {
         v = gc_general_alloc(unboxed_region, vector_nwords<<WORD_SHIFT,
-                             TRACK_ARG(DEFAULT_TRACK) PAGE_TYPE_UNBOXED);
+                             TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_UNBOXED));
         // might have used large-object pages, no region
         ensure_region_closed(unboxed_region, PAGE_TYPE_UNBOXED);
         // gc_general_alloc generally avoids pre-zeroizing, so ensure zero-fill to the end
