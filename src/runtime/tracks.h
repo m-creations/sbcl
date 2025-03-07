@@ -46,9 +46,50 @@
 #endif
 
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-#define TRACK_ARG(arg)  arg,
+#define TR_PT_ARG(tr_arg, pt_arg)  (((pt_arg) << TRACK_BITS) | (tr_arg))
 #else
-#define TRACK_ARG(arg)
+#define TR_PT_ARG(tr_arg, pt_arg)  (pt_arg)
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define WITH_TRACK(var)  var##_with_track
+#else
+#define WITH_TRACK(var)  var
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define TR(var)  (WITH_TRACK(var) & TRACK_MASK)
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define PT(var)  (WITH_TRACK(var) >> TRACK_BITS)
+#else
+#define PT(var)  (var)
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define PT_ASSIGN(var, pt_new)  WITH_TRACK(var) = TR_PT_ARG(TR(var), pt_new);
+#else
+#define PT_ASSIGN(var, pt_new)  var = (pt_new)
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define TR_PT_EXTRACT(tr_var, pt_var)                           \
+    track_index_t tr_var = TR(pt_var);                          \
+    int pt_var = PT(pt_var);
+#define TR_PT_EXTRACT_UNSIGNED(tr_var, pt_var)                  \
+    track_index_t tr_var = TR(pt_var);                          \
+    unsigned int pt_var = PT(pt_var);
+#else
+#define TR_PT_EXTRACT(tr_var, pt_var)
+#define TR_PT_EXTRACT_UNSIGNED(tr_var, pt_var)
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define TR_FROM_OBJ(obj)  PAGE_TRACK(find_page_index((void *)obj))
+#define WITH_TR_FROM_OBJ(obj, pt)  TR_PT_ARG(TR_FROM_OBJ(obj), pt)
+#else
+#define WITH_TR_FROM_OBJ(obj, pt)  (pt)
 #endif
 
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
