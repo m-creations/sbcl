@@ -1,5 +1,12 @@
 * [2] preserve current track across save & restart to/from image
-* [5] clean up SWITCH-TO-TRACK as much as possible
+* [5] clean up SWITCH-TO-TRACK as much as possible:
+      - don't lose() in switch_to_track in case of an active arena
+      - builds without allocation-tracks feature complain:
+          Missing required foreign symbol 'switch_to_track'
+        and thus fail multiple test scripts:
+          Invalid exit status: elfcore.test.sh
+          Invalid exit status: script.test.sh
+          Invalid exit status: stream.test.sh
 * [6] fix test failures:
       - compiler-2.pure.lisp / (MAP-ALLOCATED-OBJECTS NO-CONSING)
       - gc.impure.lisp / M-A-O-THREADLOCALLY-PRECISE
