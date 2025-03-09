@@ -93,6 +93,15 @@
 #endif
 
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define PAGE_TR_PT_SET(page, tr, pt)            \
+    PAGE_TRACK_SET(page, tr);                   \
+    set_page_type(page_table[page], pt)
+#else
+#define PAGE_TR_PT_SET(page, tr, pt)            \
+    set_page_type(page_table[page], pt)
+#endif
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
 #define WITH_TRACK_INDEX(var, i)  (var)[i]
 #else
 #define WITH_TRACK_INDEX(var, i)  (var)

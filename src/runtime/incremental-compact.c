@@ -288,8 +288,7 @@ static void resweep_moved_lines() {
 #ifdef LISP_FEATURE_DARWIN_JIT
         reset_page_flags(p);
 #else
-        set_page_type(page_table[p], FREE_PAGE_FLAG);
-        PAGE_TRACK_SET(p, UNUSED_TRACK);
+        PAGE_TR_PT_SET(p, UNUSED_TRACK, FREE_PAGE_FLAG);
         page_table[p].scan_start_offset_ = 0;
 #endif
       }

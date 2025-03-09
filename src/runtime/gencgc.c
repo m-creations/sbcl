@@ -139,8 +139,7 @@ page_scan_start(page_index_t page_index)
  * Particularly the 'need_zerofill' bit MUST remain as-is */
 void reset_page_flags(page_index_t page) {
     page_table[page].scan_start_offset_ = 0;
-    set_page_type(page_table[page], FREE_PAGE_FLAG);
-    PAGE_TRACK_SET(page, UNUSED_TRACK);
+    PAGE_TR_PT_SET(page, UNUSED_TRACK, FREE_PAGE_FLAG);
     gc_page_pins[page] = 0;
     // Why can't the 'gen' get cleared? It caused failures. THIS MAKES NO SENSE!!!
     //    page_table[page].gen = 0;
@@ -525,8 +524,7 @@ gc_alloc_new_region(sword_t nbytes, int WITH_TRACK(page_type), struct alloc_regi
                       et_find_freeish_page);
         if (page+1 > next_free_page) next_free_page = page+1;
         page_table[page].gen = gc_alloc_generation;
-        PAGE_TRACK_SET(page, tr);
-        set_page_type(page_table[page], OPEN_REGION_PAGE_FLAG | page_type);
+        PAGE_TR_PT_SET(page, tr, OPEN_REGION_PAGE_FLAG | page_type);
         if (!page_words_used(page))
             prepare_pages(1, page, page, page_type, gc_alloc_generation);
         // Don't need to set the scan_start_offset because free pages have it 0
@@ -567,6 +565,8 @@ gc_alloc_new_region(sword_t nbytes, int WITH_TRACK(page_type), struct alloc_regi
         gc_assert(page_table[first_page].type == page_type);
         gc_assert(page_table[first_page].gen == gc_alloc_generation);
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
+        /* FIXME: make sure track mismatches don't happen, then use
+         * gc_assert() and PAGE_TR_PT_SET() like everywhere else if possible. */
         if (PAGE_TRACK(first_page) != tr)
             fprintf(stderr, "*** track mismatch: on first page = %x, new = %x\n",
                     PAGE_TRACK(first_page), tr);
@@ -579,8 +579,7 @@ gc_alloc_new_region(sword_t nbytes, int WITH_TRACK(page_type), struct alloc_regi
 
     page_index_t i;
     for (i = first_page+1; i <= last_page; i++) {
-        set_page_type(page_table[i], OPEN_REGION_PAGE_FLAG | page_type);
-        PAGE_TRACK_SET(i, tr);
+        PAGE_TR_PT_SET(i, tr, OPEN_REGION_PAGE_FLAG | page_type);
         page_table[i].gen = gc_alloc_generation;
         set_page_scan_start_offset(i,
             addr_diff(page_address(i), alloc_region->start_addr));
@@ -823,9 +822,8 @@ void *gc_alloc_large(sword_t nbytes, int WITH_TRACK(page_type))
     for (page = first_page; page <= last_page; ++page) {
         /* Large objects don't share pages with other objects. */
         gc_assert(page_words_used(page) == 0);
-        set_page_type(page_table[page], SINGLE_OBJECT_FLAG | page_type);
+        PAGE_TR_PT_SET(page, tr, SINGLE_OBJECT_FLAG | page_type);
         page_table[page].gen = gc_alloc_generation;
-        PAGE_TRACK_SET(page, tr);
     }
 
 #ifdef LISP_FEATURE_WIN32
@@ -1186,8 +1184,7 @@ static uword_t adjust_obj_ptes(page_index_t first_page,
             }
         } else {
             for (page = first_page; page <= final_page; ++page) {
-                set_page_type(page_table[page], PT(new_allocated));
-                PAGE_TRACK_SET(page, TR(new_allocated));
+                PAGE_TR_PT_SET(page, TR(new_allocated), PT(new_allocated));
                 page_table[page].gen = new_gen;
             }
         }
@@ -1201,8 +1198,7 @@ static uword_t adjust_obj_ptes(page_index_t first_page,
         gc_assert(page_table[page].gen == from_space); \
         gc_assert(page_scan_start_offset(page) == npage_bytes(page-first_page)); \
         page_table[page].gen = new_gen; \
-        PAGE_TRACK_SET(page, TR(new_allocated));        \
-        set_page_type(page_table[page], PT(new_allocated))
+        PAGE_TR_PT_SET(page, TR(new_allocated), PT(new_allocated))
 
     gc_assert(page_starts_contiguous_block_p(first_page));
     page_index_t page = first_page;
