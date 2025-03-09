@@ -257,8 +257,7 @@ bool try_allocate_small_from_pages(sword_t nbytes, struct alloc_region *region,
           prepare_pages(1, where, where,
                         PT(page_type) == PAGE_TYPE_CODE ? PT(page_type) : 0,
                         get_alloc_generation());
-      set_page_type(page_table[where], PT(page_type) | OPEN_REGION_PAGE_FLAG);
-      PAGE_TRACK_SET(where, TR(page_type));
+      PAGE_TR_PT_SET(where, TR(page_type), PT(page_type) | OPEN_REGION_PAGE_FLAG);
       page_table[where].gen = 0;
       set_page_scan_start_offset(where, 0);
       start->page = where + 1;
@@ -311,8 +310,7 @@ page_index_t try_allocate_large(uword_t nbytes,
                     PT(page_type) == PAGE_TYPE_CODE ? PT(page_type) : 0,
                     get_alloc_generation());
       for (page_index_t p = chunk_start; p <= last_page; p++) {
-        set_page_type(page_table[p], SINGLE_OBJECT_FLAG | PT(page_type));
-        PAGE_TRACK_SET(p, TR(page_type));
+        PAGE_TR_PT_SET(p, TR(page_type), SINGLE_OBJECT_FLAG | PT(page_type));
         page_table[p].gen = gen;
         set_page_bytes_used(p,
                             (p == last_page && remainder > 0) ? remainder
