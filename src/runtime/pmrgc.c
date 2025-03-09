@@ -100,8 +100,7 @@ page_scan_start(page_index_t page_index)
  * Particularly the 'need_zerofill' bit MUST remain as-is */
 void reset_page_flags(page_index_t page) {
     page_table[page].scan_start_offset_ = 0;
-    set_page_type(page_table[page], FREE_PAGE_FLAG);
-    PAGE_TRACK_SET(page, UNUSED_TRACK);
+    PAGE_TR_PT_SET(page, UNUSED_TRACK, FREE_PAGE_FLAG);
     gc_page_pins[page] = 0;
 }
 
