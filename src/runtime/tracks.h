@@ -102,6 +102,17 @@
 #endif
 
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define PAGE_ON_TR(page, tr)  (PAGE_TRACK(page) == (tr))
+#define PAGE_ON_TRACK(page, pt_var)  PAGE_ON_TR(page, TR(pt_var))
+#else
+#define PAGE_ON_TR(page, tr)  true
+#define PAGE_ON_TRACK(page, pt_var)  true
+#endif
+
+#define PAGE_OF_PT(page, pt)  (page_table[page].type == (pt))
+#define PAGE_OF_TYPE(page, pt_var)  PAGE_OF_PT(page, PT(pt_var))
+
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
 #define WITH_TRACK_INDEX(var, i)  (var)[i]
 #else
 #define WITH_TRACK_INDEX(var, i)  (var)
