@@ -169,10 +169,8 @@ void pre_search_for_small_space(sword_t nbytes, int WITH_TRACK(page_type),
     if (page_bytes_used(page) <= GENCGC_PAGE_BYTES - nbytes &&
         !target_pages[page] &&
         ((state->allow_free_pages && page_free_p(page)) ||
-         (page_table[page].type == PT(page_type) &&
-#ifdef LISP_FEATURE_ALLOCATION_TRACKS
-          PAGE_TRACK(page) == TR(page_type) &&
-#endif
+         (PAGE_OF_TYPE(page, page_type) &&
+          PAGE_ON_TRACK(page, page_type) &&
           page_table[page].gen != PSEUDO_STATIC_GENERATION))) {
       line_index_t where = page_to_line(page);
       line_index_t last_line = where + LINES_PER_PAGE;
@@ -244,10 +242,8 @@ bool try_allocate_small_from_pages(sword_t nbytes, struct alloc_region *region,
     if (page_bytes_used(where) <= GENCGC_PAGE_BYTES - nbytes &&
         !target_pages[where] &&
         ((start->allow_free_pages && page_free_p(where)) ||
-         (page_table[where].type == PT(page_type) &&
-#ifdef LISP_FEATURE_ALLOCATION_TRACKS
-          PAGE_TRACK(where) == TR(page_type) &&
-#endif
+         (PAGE_OF_TYPE(where, page_type) &&
+          PAGE_ON_TRACK(where, page_type) &&
           page_table[where].gen != PSEUDO_STATIC_GENERATION)) &&
         try_allocate_small(nbytes, region,
                            page_to_line(where), page_to_line(where + 1))) {
