@@ -428,18 +428,14 @@ static inline bool
 page_extensible_p(page_index_t index, generation_index_t gen, int WITH_TRACK(type)) {
 #ifdef LISP_FEATURE_BIG_ENDIAN /* TODO: implement this as single comparison */
     int attributes_match =
-#ifdef LISP_FEATURE_ALLOCATION_TRACKS
-           PAGE_TRACK(index) == TR(type) &&
-#endif
-           page_table[index].type == PT(type)
+        PAGE_ON_TRACK(index, type)
+        && PAGE_OF_TYPE(index, type)
         && page_table[index].gen == gen
         && !gc_page_pins[index];
 #else
     // FIXME: "warning: dereferencing type-punned pointer will break strict-aliasing rules"
     int attributes_match =
-#ifdef LISP_FEATURE_ALLOCATION_TRACKS
-           PAGE_TRACK(index) == TR(type) &&
-#endif
+        PAGE_ON_TRACK(index, type) &&
            *(int16_t*)&page_table[index].type == ((gen<<8)|PT(type));
 #endif
 #ifdef LISP_FEATURE_SOFT_CARD_MARKS
