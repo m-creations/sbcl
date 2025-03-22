@@ -12,11 +12,11 @@
 #include "thread.h"
 #include "genesis/instance.h"
 
-static page_index_t close_heap_region_(struct alloc_region* r, int page_type) {
+static page_index_t close_heap_region_(struct alloc_region* r, int WITH_TRACK(page_type)) {
     page_index_t result = -1;
     if (r->start_addr) {
         result = find_page_index(r->start_addr);
-        gc_close_region(r, page_type);
+        gc_close_region(r, WITH_TRACK(page_type));
     }
     return result;
 }
@@ -37,8 +37,10 @@ void switch_to_track(lispobj track)
     // Page table lock guards the page table
     acquire_gc_page_table_lock();
     // Close only the non-system regions
-    extra_data->mixed_page_hint[th->track] = close_heap_region_(&th->mixed_tlab, PAGE_TYPE_MIXED);
-    extra_data->cons_page_hint[th->track] = close_heap_region_(&th->cons_tlab, PAGE_TYPE_CONS);
+    extra_data->mixed_page_hint[th->track] =
+        close_heap_region_(&th->mixed_tlab, TR_PT_ARG(th->track, PAGE_TYPE_MIXED));
+    extra_data->cons_page_hint[th->track] =
+        close_heap_region_(&th->cons_tlab, TR_PT_ARG(th->track, PAGE_TYPE_CONS));
     release_gc_page_table_lock();
     /*
     } else {

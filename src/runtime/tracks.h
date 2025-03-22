@@ -118,4 +118,10 @@
 #define WITH_TRACK_INDEX(var, i)  (var)
 #endif
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+#define UNUSED_WITHOUT_TRACKS(arg) arg
+#else
+#define UNUSED_WITHOUT_TRACKS(arg) __attribute__((unused)) arg
+#endif
+
 #endif /* _TRACKS_H_ */
