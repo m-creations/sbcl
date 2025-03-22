@@ -128,7 +128,7 @@ CRITICAL_SECTION code_allocator_lock; // threads are mandatory for win32
 pthread_mutex_t code_allocator_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-typedef struct { struct alloc_region* r; int type; } close_region_arg;
+typedef struct { struct alloc_region* r; int WITH_TRACK(type); } close_region_arg;
 void sync_close_regions(int block_signals, int options,
                         close_region_arg* a, int count)
 {
@@ -153,11 +153,12 @@ void sync_close_regions(int block_signals, int options,
          * With that test in, I still see heap exhaustions, but without the test
          * - so using up the remainder of the TLAB always - we do NOT get exhaustions.
          * It can't be a race, because we're holding the mutex */
-        if ((options & CONSUME_REMAINDER) /* && p < get_alloc_start_page(a[i].type) */ ) {
+        if ((options & CONSUME_REMAINDER) /* && p < get_alloc_start_page(a[i].WITH_TRACK(type)) */ ) {
             extern void deposit_filler(char*, char*);
             char* freeptr = a[i].r->free_pointer;
             char* new_end =
-                (a[i].type == PAGE_TYPE_CONS) ?
+                /* (a[i].type_with_track >> TRACK_BITS) == PAGE_TYPE_CONS :-) */
+                (PT(a[i].type) == PAGE_TYPE_CONS) ?
                 PTR_ALIGN_DOWN(freeptr, GENCGC_PAGE_BYTES) + CONS_PAGE_USABLE_BYTES
                 : PTR_ALIGN_UP(freeptr, GENCGC_PAGE_BYTES);
             // fillers may not be needed. This anticipates non-zero-filed pages though.
@@ -165,7 +166,7 @@ void sync_close_regions(int block_signals, int options,
             a[i].r->free_pointer = new_end;
         }
 #endif
-        ensure_region_closed(a[i].r, a[i].type);
+        ensure_region_closed(a[i].r, a[i].WITH_TRACK(type));
     }
     if (options & LOCK_PAGE_TABLE) release_gc_page_table_lock();
     if (options & LOCK_CODE_ALLOCATOR) {
@@ -184,39 +185,39 @@ void sync_close_regions(int block_signals, int options,
  * Normally this is guaranteed by pseudo-atomic, but in the interest of simplicity,
  * these are plain foreign calls without aid of a vop. */
 void close_current_thread_tlab() {
-    __attribute__((unused)) struct thread *self = get_sb_vm_thread();
+    UNUSED_WITHOUT_TRACKS(struct thread *self) = get_sb_vm_thread();
     /* If the compiler doesn't use the cons region, neither will alloc_list().
      * i.e. we'll never see the cons region used with PAGE_TYPE_MIXED.
      * Thus the invariants about page type correctness hold when closing */
     close_region_arg argv[] = {
-      { THREAD_ALLOC_REGION(self,mixed), PAGE_TYPE_MIXED },
-      { THREAD_ALLOC_REGION(self,cons), PAGE_TYPE_CONS },
+      { THREAD_ALLOC_REGION(self,mixed), TR_PT_ARG(self->track, PAGE_TYPE_MIXED) },
+      { THREAD_ALLOC_REGION(self,cons), TR_PT_ARG(self->track, PAGE_TYPE_CONS) },
 #ifdef LISP_FEATURE_SB_THREAD
-      { THREAD_ALLOC_REGION(self,sys_mixed), PAGE_TYPE_MIXED },
-      { THREAD_ALLOC_REGION(self,sys_cons), PAGE_TYPE_CONS }
+      { THREAD_ALLOC_REGION(self,sys_mixed), TR_PT_ARG(0, PAGE_TYPE_MIXED) },
+      { THREAD_ALLOC_REGION(self,sys_cons), TR_PT_ARG(0, PAGE_TYPE_CONS) }
 #endif
     };
     sync_close_regions(1, LOCK_PAGE_TABLE, argv, N_THREAD_TLABS(argv));
 }
 void close_code_region() {
-    close_region_arg argv = { code_region, PAGE_TYPE_CODE };
+    close_region_arg argv = { code_region, TR_PT_ARG(0, PAGE_TYPE_CODE) };
     sync_close_regions(1, LOCK_PAGE_TABLE|LOCK_CODE_ALLOCATOR, &argv, 1);
 }
 /* When this is called by unregister_thread() with STOP_FOR_GC blocked,
  * it needs to aquire the page table lock but not the code allocator lock.
  * It is also called at the start of GC to close each non-dead thread's regions,
  * in which case no locks are needed since all other lisp threads are stopped. */
-void gc_close_thread_regions(__attribute__((unused)) struct thread* th,
+void gc_close_thread_regions(UNUSED_WITHOUT_TRACKS(struct thread* th),
                              int locking) {
     close_region_arg argv[] = {
 #if defined LISP_FEATURE_SB_THREAD || defined LISP_FEATURE_X86_64
-      { &th->mixed_tlab, PAGE_TYPE_MIXED },
-      { &th->cons_tlab, PAGE_TYPE_CONS },
-      { &th->sys_mixed_tlab, PAGE_TYPE_MIXED },
-      { &th->sys_cons_tlab, PAGE_TYPE_CONS }
+      { &th->mixed_tlab, TR_PT_ARG(th->track, PAGE_TYPE_MIXED) },
+      { &th->cons_tlab, TR_PT_ARG(th->track, PAGE_TYPE_CONS) },
+      { &th->sys_mixed_tlab, TR_PT_ARG(0, PAGE_TYPE_MIXED) },
+      { &th->sys_cons_tlab, TR_PT_ARG(0, PAGE_TYPE_CONS) }
 #else
-      { main_thread_mixed_region, PAGE_TYPE_MIXED },
-      { main_thread_cons_region, PAGE_TYPE_CONS },
+      { main_thread_mixed_region, TR_PT_ARG(0, PAGE_TYPE_MIXED) },
+      { main_thread_cons_region, TR_PT_ARG(0, PAGE_TYPE_CONS) },
 #endif
     };
     sync_close_regions(0, locking, argv, N_THREAD_TLABS(argv));

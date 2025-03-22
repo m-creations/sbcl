@@ -1014,7 +1014,7 @@ gc_pathfind_aux(lispobj* stackptr, lispobj input, lispobj results,
     if (!n_live) return 0;
     struct thread *th;
     for_each_thread(th) gc_close_thread_regions(th, 0);
-    ensure_region_closed(code_region, PAGE_TYPE_CODE);
+    ensure_region_closed(code_region, TR_PT_ARG(0, PAGE_TYPE_CODE));
 
     struct hopscotch_table roots;
     hopscotch_create(&roots, HOPSCOTCH_HASH_FUN_DEFAULT, 0, 32, 0);
@@ -1090,8 +1090,8 @@ gc_pathfind_aux(lispobj* stackptr, lispobj input, lispobj results,
     } while (weak_pointers != NIL);
     cur_thread_stackptr_at_entry = 0;
 
-    ensure_region_closed(unboxed_region, PAGE_TYPE_UNBOXED);
-    ensure_region_closed(cons_region, PAGE_TYPE_CONS);
+    ensure_region_closed(unboxed_region, TR_PT_ARG(0, PAGE_TYPE_UNBOXED));
+    ensure_region_closed(cons_region, TR_PT_ARG(0, PAGE_TYPE_CONS));
 
     os_deallocate(scratchpad.base, scratchpad.end-scratchpad.base);
 #if TRACEROOT_USE_ABSL_HASHMAP
