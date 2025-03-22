@@ -257,7 +257,7 @@ set_alloc_start_page(unsigned int WITH_TRACK(page_type), struct allocator_state 
 #include "private-cons.inc"
 
 void gc_close_region(struct alloc_region *alloc_region,
-                     __attribute__((unused)) int page_type)
+                     __attribute__((unused)) int WITH_TRACK(page_type))
 {
     mr_update_closed_region(alloc_region, gc_alloc_generation);
 }
@@ -278,7 +278,7 @@ void *collector_alloc_fallback(struct alloc_region* region, sword_t nbytes,
         new_obj = page_address(new_page);
         set_allocation_bit_mark(new_obj);
     } else {
-        ensure_region_closed(region, PT(page_type));
+        ensure_region_closed(region, WITH_TRACK(page_type));
         bool success =
             try_allocate_small_from_pages(nbytes, region, WITH_TRACK(page_type),
                                           gc_alloc_generation,
@@ -481,12 +481,12 @@ static void sticky_preserve_pointer(os_context_register_t register_word, void* a
 
 void gc_close_collector_regions(int flag)
 {
-    ensure_region_closed(code_region, flag|PAGE_TYPE_CODE);
-    ensure_region_closed(boxed_region, PAGE_TYPE_BOXED);
-    ensure_region_closed(unboxed_region, PAGE_TYPE_UNBOXED);
-    ensure_region_closed(mixed_region, PAGE_TYPE_MIXED);
-    ensure_region_closed(small_mixed_region, PAGE_TYPE_SMALL_MIXED);
-    ensure_region_closed(cons_region, PAGE_TYPE_CONS);
+    ensure_region_closed(code_region,        TR_PT_ARG(0, flag|PAGE_TYPE_CODE));
+    ensure_region_closed(boxed_region,       TR_PT_ARG(0, PAGE_TYPE_BOXED));
+    ensure_region_closed(unboxed_region,     TR_PT_ARG(0, PAGE_TYPE_UNBOXED));
+    ensure_region_closed(mixed_region,       TR_PT_ARG(0, PAGE_TYPE_MIXED));
+    ensure_region_closed(small_mixed_region, TR_PT_ARG(0, PAGE_TYPE_SMALL_MIXED));
+    ensure_region_closed(cons_region,        TR_PT_ARG(0, PAGE_TYPE_CONS));
 }
 
 
@@ -1081,7 +1081,7 @@ collect_garbage(generation_index_t last_gen)
     remset_union(remset_transfer_list);
     remset_transfer_list = 0;
 #endif
-    ensure_region_closed(code_region, PAGE_TYPE_CODE);
+    ensure_region_closed(code_region, TR_PT_ARG(0, PAGE_TYPE_CODE));
     if (gencgc_verbose > 2) fprintf(stderr, "[%d] BEGIN gc(%d)\n", n_lisp_gcs, last_gen);
 
 #ifdef LISP_FEATURE_IMMOBILE_SPACE
@@ -1325,6 +1325,7 @@ lisp_alloc(__attribute__((unused)) int flags,
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
     track_index_t tr = thread->track;
     gc_assert ((int)tr < TRACKS_END);
+    int WITH_TRACK(page_type) = TR_PT_ARG(tr, page_type);
 #endif
     os_vm_size_t trigger_bytes = 0;
 
@@ -1409,18 +1410,18 @@ lisp_alloc(__attribute__((unused)) int flags,
         allocator_record_backtrace(__builtin_frame_address(0), thread);
 #endif
 
-    ensure_region_closed(region, page_type);
-    struct allocator_state alloc_start = get_alloc_start_page(TR_PT_ARG(tr, page_type));
+    ensure_region_closed(region, WITH_TRACK(page_type));
+    struct allocator_state alloc_start = get_alloc_start_page(WITH_TRACK(page_type));
     bool largep = nbytes >= LARGE_OBJECT_SIZE && page_type != PAGE_TYPE_CONS;
     if (largep) {
         int __attribute__((unused)) ret = mutex_acquire(&free_pages_lock);
         gc_assert(ret);
         uword_t largest_hole;
-        page_index_t new_page = try_allocate_large(nbytes, TR_PT_ARG(tr, page_type),
+        page_index_t new_page = try_allocate_large(nbytes, WITH_TRACK(page_type),
                                                    gc_alloc_generation,
                                                    &alloc_start, page_table_pages, &largest_hole);
         if (new_page == -1) gc_heap_exhausted_error_or_lose(largest_hole, nbytes);
-        set_alloc_start_page(TR_PT_ARG(tr, page_type), alloc_start);
+        set_alloc_start_page(WITH_TRACK(page_type), alloc_start);
         ret = mutex_release(&free_pages_lock);
         gc_assert(ret);
         new_obj = page_address(new_page);
@@ -1428,7 +1429,7 @@ lisp_alloc(__attribute__((unused)) int flags,
         gc_memclear(page_type, new_obj, nbytes);
     } else {
         /* Try to find a page before acquiring free_pages_lock. */
-        pre_search_for_small_space(nbytes, TR_PT_ARG(tr, page_type),
+        pre_search_for_small_space(nbytes, WITH_TRACK(page_type),
                                    &alloc_start, page_table_pages);
         int __attribute__((unused)) ret = mutex_acquire(&free_pages_lock);
         gc_assert(ret);
@@ -1436,11 +1437,11 @@ lisp_alloc(__attribute__((unused)) int flags,
         /* This search will only re-visit the page found by pre_search_for_small_space
          * if no one else claimed the page since acquiring free_pages_lock. */
         bool success =
-            try_allocate_small_from_pages(nbytes, region, TR_PT_ARG(tr, page_type),
+            try_allocate_small_from_pages(nbytes, region, WITH_TRACK(page_type),
                                           gc_alloc_generation,
                                           &alloc_start, page_table_pages);
         if (!success) gc_heap_exhausted_error_or_lose(0, nbytes);
-        set_alloc_start_page(TR_PT_ARG(tr, page_type), alloc_start);
+        set_alloc_start_page(WITH_TRACK(page_type), alloc_start);
         ret = mutex_release(&free_pages_lock);
         gc_assert(ret);
         new_obj = region->start_addr;

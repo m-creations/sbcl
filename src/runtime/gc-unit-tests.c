@@ -32,14 +32,15 @@ void test_find_freeish()
     int i;
     for(i=0; i<100;++i) {
         int chunk = N_WORD_BYTES*40;
-        gc_alloc_new_region(chunk, TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_BOXED), &r, 0);
+        int page_type = TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_BOXED);
+        gc_alloc_new_region(chunk, page_type, &r, 0);
         tot_bytes += chunk;
         r.free_pointer = (char*)r.free_pointer + chunk;
         int count_open_region_pages = 0, j;
         for (j = 0; j < MAX_PAGES_FOR_TEST; ++j)
             if (page_table[j].type & OPEN_REGION_PAGE_FLAG) ++count_open_region_pages;
         gc_assert(count_open_region_pages == 1);
-        ensure_region_closed(&r, PAGE_TYPE_BOXED);
+        ensure_region_closed(&r, page_type);
         gc_assert(bytes_allocated == tot_bytes);
     }
     free(page_table);
