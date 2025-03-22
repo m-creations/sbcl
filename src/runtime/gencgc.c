@@ -236,7 +236,7 @@ count_track_bytes_allocated (track_index_t tr)
     page_index_t i;
     os_vm_size_t result = 0;
     for (i = 0; i < next_free_page; i++) {
-        if (!page_free_p(i) && PAGE_TRACK(i) == tr)
+        if (!page_free_p(i) && PAGE_ON_TR(i, tr))
             result += page_words_used(i);
     }
     return result*N_WORD_BYTES;
@@ -563,7 +563,7 @@ gc_alloc_new_region(sword_t nbytes, int WITH_TRACK(page_type), struct alloc_regi
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
         /* FIXME: make sure track mismatches don't happen, then use
          * gc_assert() and PAGE_TR_PT_SET() like everywhere else if possible. */
-        if (PAGE_TRACK(first_page) != tr)
+        if (!PAGE_ON_TR(first_page, tr))
             fprintf(stderr, "*** track mismatch: on first page = %x, new = %x\n",
                     PAGE_TRACK(first_page), tr);
 #endif
@@ -718,7 +718,7 @@ gc_close_region(struct alloc_region *alloc_region, int page_type)
             gc_assert(page_starts_contiguous_block_p(first_page));
 
         gc_assert(page_table[first_page].type == page_type);
-        //gc_assert(PAGE_TRACK(first_page) == tr);
+        //gc_assert(PAGE_ON_TR(first_page, tr));
         gc_assert(page_table[first_page].gen == gc_alloc_generation);
 
         /* Calculate the number of bytes used in this page. This is not
@@ -742,7 +742,7 @@ gc_close_region(struct alloc_region *alloc_region, int page_type)
             gc_assert(page_words_used(next_page) == 0);
             gc_assert(page_table[next_page].gen == gc_alloc_generation);
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-            gc_assert(PAGE_TRACK(next_page) == tr);
+            gc_assert(PAGE_ON_TR(next_page, tr));
 #endif
             page_base += GENCGC_PAGE_BYTES;
             gc_assert(page_scan_start_offset(next_page) ==
@@ -919,7 +919,7 @@ gc_find_freeish_pages(page_index_t *restart_page_ptr, sword_t nbytes,
             gc_dcheck(!page_words_used(first_page));
             bytes_found = GENCGC_PAGE_BYTES;
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
-        } else if (PAGE_TRACK(first_page) != tr) {
+        } else if (!PAGE_ON_TR(first_page, tr)) {
             first_page++;
             continue;
 #endif
