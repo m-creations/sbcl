@@ -688,8 +688,9 @@ add_new_area(page_index_t first_page, size_t offset, size_t size)
  * can open/close/open/close a region several times on the same page).
  */
 void
-gc_close_region(struct alloc_region *alloc_region, int page_type)
+gc_close_region(struct alloc_region *alloc_region, int WITH_TRACK(page_type))
 {
+    TR_PT_EXTRACT(tr, page_type)
     page_index_t first_page = find_page_index(alloc_region->start_addr);
     int type = page_table[first_page].type;
     gc_assert(type & OPEN_REGION_PAGE_FLAG);
@@ -701,9 +702,6 @@ gc_close_region(struct alloc_region *alloc_region, int page_type)
     gc_assert(alloc_region->start_addr == page_base + orig_first_page_bytes_used);
     // Mark the region as closed on its first page.
     page_table[first_page].type = type ^ OPEN_REGION_PAGE_FLAG;
-#ifdef LISP_FEATURE_ALLOCATION_TRACKS
-    track_index_t tr = PAGE_TRACK(first_page);
-#endif
 
     page_index_t next_page = first_page+1;
     char *free_pointer = alloc_region->free_pointer;
@@ -717,8 +715,14 @@ gc_close_region(struct alloc_region *alloc_region, int page_type)
         if (!orig_first_page_bytes_used)
             gc_assert(page_starts_contiguous_block_p(first_page));
 
-        gc_assert(page_table[first_page].type == page_type);
-        //gc_assert(PAGE_ON_TR(first_page, tr));
+        gc_assert(PAGE_OF_PT(first_page, page_type));
+        /* gc_assert(PAGE_ON_TR(first_page, tr)); */
+        if (false && !PAGE_ON_TR(first_page, tr)) {
+            fprintf(stderr, "*** track mismatch in gc_close_region: start=%12p, p=%x, pt=%x, tr=%x != %x\n",
+                    alloc_region->start_addr, first_page, page_type, PAGE_TRACK(first_page), tr);
+            if (!gc_active_p)
+                ldb_monitor();
+        }
         gc_assert(page_table[first_page].gen == gc_alloc_generation);
 
         /* Calculate the number of bytes used in this page. This is not
@@ -736,14 +740,11 @@ gc_close_region(struct alloc_region *alloc_region, int page_type)
 
         /* All the rest of the pages should be accounted for. */
         while (more) {
-            gc_assert(page_table[next_page].type ==
-                      (OPEN_REGION_PAGE_FLAG | page_type));
+            gc_assert(PAGE_OF_PT(next_page, OPEN_REGION_PAGE_FLAG | page_type));
             page_table[next_page].type ^= OPEN_REGION_PAGE_FLAG;
             gc_assert(page_words_used(next_page) == 0);
             gc_assert(page_table[next_page].gen == gc_alloc_generation);
-#ifdef LISP_FEATURE_ALLOCATION_TRACKS
-            gc_assert(PAGE_ON_TR(next_page, tr));
-#endif
+            gc_assert(PAGE_ON_TR(next_page, PAGE_TRACK(first_page)));
             page_base += GENCGC_PAGE_BYTES;
             gc_assert(page_scan_start_offset(next_page) ==
                       addr_diff(page_base, alloc_region->start_addr));
@@ -768,7 +769,7 @@ gc_close_region(struct alloc_region *alloc_region, int page_type)
 #endif
 
         /* Set the alloc restart page to the last page of the region. */
-        set_alloc_start_page(TR_PT_ARG(tr, page_type), next_page-1);
+        set_alloc_start_page(TR_PT_ARG(PAGE_TRACK(first_page),PT(page_type)), next_page-1);
 
         /* Add the region to the new_areas if requested. */
         if (boxed_type_p(page_type))
@@ -1005,7 +1006,7 @@ gc_find_freeish_pages(page_index_t *restart_page_ptr, sword_t nbytes,
  */
 static void *new_region(struct alloc_region* region, sword_t nbytes, int WITH_TRACK(page_type))
 {
-    ensure_region_closed(region, PT(page_type));
+    ensure_region_closed(region, WITH_TRACK(page_type));
     void* new_obj = gc_alloc_new_region(nbytes, WITH_TRACK(page_type), region, 0);
     region->free_pointer = (char*)new_obj + nbytes;
     gc_assert(region->free_pointer <= region->end_addr);
@@ -1104,7 +1105,7 @@ void *collector_alloc_fallback(struct alloc_region* region, sword_t nbytes, int 
      * the fact that the page was selected), then there exists a next card. The next card holds
      * GENCGC_CARD_BYTES, which exceeds SMALL_MIXED_NBYTES_LIMIT. Therefore in this final case,
      * we need to open a region but check whether to advance to a new card */
-    ensure_region_closed(region, PT(page_type));
+    ensure_region_closed(region, WITH_TRACK(page_type));
     void* new_obj = gc_alloc_new_region(nbytes, WITH_TRACK(page_type), region, 0);
     void* new_freeptr = (char*)new_obj + nbytes;
     if (new_freeptr <= region->end_addr) {
@@ -2753,12 +2754,12 @@ static void newspace_full_scavenge(generation_index_t generation)
 
 void gc_close_collector_regions(int flag)
 {
-    ensure_region_closed(code_region, flag|PAGE_TYPE_CODE);
-    ensure_region_closed(boxed_region, PAGE_TYPE_BOXED);
-    ensure_region_closed(unboxed_region, PAGE_TYPE_UNBOXED);
-    ensure_region_closed(mixed_region, PAGE_TYPE_MIXED);
-    ensure_region_closed(small_mixed_region, PAGE_TYPE_SMALL_MIXED);
-    ensure_region_closed(cons_region, PAGE_TYPE_CONS);
+    ensure_region_closed(code_region,        TR_PT_ARG(0, flag|PAGE_TYPE_CODE));
+    ensure_region_closed(boxed_region,       TR_PT_ARG(0, PAGE_TYPE_BOXED));
+    ensure_region_closed(unboxed_region,     TR_PT_ARG(0, PAGE_TYPE_UNBOXED));
+    ensure_region_closed(mixed_region,       TR_PT_ARG(0, PAGE_TYPE_MIXED));
+    ensure_region_closed(small_mixed_region, TR_PT_ARG(0, PAGE_TYPE_SMALL_MIXED));
+    ensure_region_closed(cons_region,        TR_PT_ARG(0, PAGE_TYPE_CONS));
 }
 
 /* Do a complete scavenge of the newspace generation. */
@@ -3967,7 +3968,7 @@ collect_garbage(generation_index_t last_gen)
     remset_transfer_list = 0;
 #endif
 
-    ensure_region_closed(code_region, PAGE_TYPE_CODE);
+    ensure_region_closed(code_region, TR_PT_ARG(0, PAGE_TYPE_CODE));
     if (gencgc_verbose > 2) fprintf(stderr, "[%d] BEGIN gc(%d)\n", n_lisp_gcs, last_gen);
 
 #ifdef LISP_FEATURE_IMMOBILE_SPACE
@@ -4221,6 +4222,7 @@ lisp_alloc(int flags, struct alloc_region *region, sword_t nbytes,
 #ifdef LISP_FEATURE_ALLOCATION_TRACKS
     track_index_t tr = thread->track;
     gc_assert((int)tr < TRACKS_END);
+    int WITH_TRACK(page_type) = TR_PT_ARG(tr, page_type);
 #endif
 
     os_vm_size_t trigger_bytes = 0;
@@ -4300,14 +4302,14 @@ lisp_alloc(int flags, struct alloc_region *region, sword_t nbytes,
         allocator_record_backtrace(__builtin_frame_address(0), thread);
 #endif
 
-    if (flags & 1) return gc_alloc_large(nbytes, TR_PT_ARG(tr, page_type));
+    if (flags & 1) return gc_alloc_large(nbytes, WITH_TRACK(page_type));
 
     int __attribute__((unused)) ret = mutex_acquire(&free_pages_lock);
     gc_assert(ret);
-    ensure_region_closed(region, page_type);
+    ensure_region_closed(region, WITH_TRACK(page_type));
     // hold the lock after alloc_new_region if a cons page
     int release = page_type != PAGE_TYPE_CONS;
-    new_obj = gc_alloc_new_region(nbytes, TR_PT_ARG(tr, page_type), region, release);
+    new_obj = gc_alloc_new_region(nbytes, WITH_TRACK(page_type), region, release);
     region->free_pointer = (char*)new_obj + nbytes;
     // addr_diff asserts that 'end' >= 'free_pointer'
     int remaining = addr_diff(region->end_addr, region->free_pointer);
@@ -4320,17 +4322,17 @@ lisp_alloc(int flags, struct alloc_region *region, sword_t nbytes,
     // requesting yet another region.
     if (page_type == PAGE_TYPE_CONS) {
         if (remaining <= CONS_SIZE * N_WORD_BYTES) { // Refill now if <= 1 more cons to go
-            gc_close_region(region, page_type);
+            gc_close_region(region, WITH_TRACK(page_type));
             // Request > 2 words, forcing a new page to be claimed.
-            gc_alloc_new_region(4 * N_WORD_BYTES, TR_PT_ARG(tr, page_type), region, 0); // don't release
+            gc_alloc_new_region(4 * N_WORD_BYTES, WITH_TRACK(page_type), region, 0); // don't release
         }
         ret = mutex_release(&free_pages_lock);
         gc_assert(ret);
     } else if (remaining <= 4 * N_WORD_BYTES
                && TryEnterCriticalSection(&free_pages_lock)) {
-        gc_close_region(region, page_type);
+        gc_close_region(region, WITH_TRACK(page_type));
         // Request > 4 words, forcing a new page to be claimed.
-        gc_alloc_new_region(6 * N_WORD_BYTES, TR_PT_ARG(tr, page_type), region, 1); // do release
+        gc_alloc_new_region(6 * N_WORD_BYTES, WITH_TRACK(page_type), region, 1); // do release
     }
 
     return new_obj;
