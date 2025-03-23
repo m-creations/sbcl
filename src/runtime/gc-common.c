@@ -373,7 +373,7 @@ trans_code(struct code *code)
      * we still want, such as the NOTE_TRANSPORTING macro invocation */
     long nbytes = nwords << WORD_SHIFT;
     if (nbytes >= LARGE_OBJECT_SIZE && !page_single_obj_p(find_page_index(code)))
-        ensure_region_closed(code_region, TR_PT_ARG(0, PAGE_TYPE_CODE));
+        ensure_region_closed(code_region, TR_PT_ARG(0, PAGE_TYPE_CODE), 6);
 #endif
     lispobj l_code = make_lispobj(code, OTHER_POINTER_LOWTAG);
     lispobj l_new_code
@@ -1968,7 +1968,7 @@ void cull_weak_hash_tables(int (*alivep[4])(lispobj,lispobj))
     if (weak_objects.count)
         hopscotch_reset(&weak_objects);
     // Close the region used when pushing into hash_table->smashed_cells
-    ensure_region_closed(cons_region, TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_CONS));
+    ensure_region_closed(cons_region, TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_CONS), 7);
 }
 
 
@@ -2823,7 +2823,7 @@ void scan_finalizers()
         node = next;
     }
     // Close the region
-    ensure_region_closed(cons_region, TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_CONS));
+    ensure_region_closed(cons_region, TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_CONS), 8);
 #endif
 }
 

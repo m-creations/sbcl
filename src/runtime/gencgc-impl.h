@@ -817,12 +817,12 @@ int gencgc_handle_wp_violation(void*, void*);
 #define LOCK_CODE_ALLOCATOR 2
 #define CONSUME_REMAINDER 4
 
-void gc_close_region(struct alloc_region *alloc_region, int WITH_TRACK(page_type));
+void gc_close_region(struct alloc_region *alloc_region, int WITH_TRACK(page_type), int origin);
 static inline void ensure_region_closed(struct alloc_region *alloc_region,
-                                        int WITH_TRACK(page_type))
+                                        int WITH_TRACK(page_type), int origin)
 {
     if (alloc_region->start_addr)
-        gc_close_region(alloc_region, WITH_TRACK(page_type));
+        gc_close_region(alloc_region, WITH_TRACK(page_type), 100+origin);
 }
 
 #ifdef LISP_FEATURE_IMMOBILE_SPACE
