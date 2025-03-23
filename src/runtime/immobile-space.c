@@ -1366,7 +1366,7 @@ void prepare_immobile_space_for_save(bool verbose)
         v = gc_general_alloc(unboxed_region, vector_nwords<<WORD_SHIFT,
                              TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_UNBOXED));
         // might have used large-object pages, no region
-        ensure_region_closed(unboxed_region, TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_UNBOXED));
+        ensure_region_closed(unboxed_region, TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_UNBOXED), 20);
         // gc_general_alloc generally avoids pre-zeroizing, so ensure zero-fill to the end
         // of dynamic space as we've aready performed zero_all_free_ranges().
         uword_t vector_end = (uword_t)((lispobj*)v + vector_nwords),
