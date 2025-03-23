@@ -171,7 +171,7 @@ void sync_close_regions(int block_signals, int options,
             close_region_tot_bytes_wasted += new_end - freeptr;
         }
 #endif
-        ensure_region_closed(a[i].r, a[i].WITH_TRACK(type));
+        ensure_region_closed(a[i].r, a[i].WITH_TRACK(type), 5);
     }
     if (options & LOCK_PAGE_TABLE) release_gc_page_table_lock();
     if (options & LOCK_CODE_ALLOCATOR) {

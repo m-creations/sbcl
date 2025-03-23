@@ -184,7 +184,7 @@ static page_index_t close_heap_region(struct alloc_region* r, int page_type) {
     page_index_t result = -1;
     if (r->start_addr) {
         result = find_page_index(r->start_addr);
-        gc_close_region(r, page_type);
+        gc_close_region(r, page_type, 0);
     }
     return result;
 }

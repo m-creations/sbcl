@@ -357,7 +357,7 @@ void move_rospace_to_dynamic(__attribute__((unused)) int print)
     SET_ALLOCATED_BIT(nullsap);
     nullsap->header = (1 << N_WIDETAG_BITS) | SAP_WIDETAG;
     nullsap->pointer = 0;
-    ensure_region_closed(unboxed_region, TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_UNBOXED));
+    ensure_region_closed(unboxed_region, TR_PT_ARG(DEFAULT_TRACK, PAGE_TYPE_UNBOXED), 21);
     os_deallocate((void*)READ_ONLY_SPACE_START, READ_ONLY_SPACE_END - READ_ONLY_SPACE_START);
     walk_all_gc_spaces(undo_rospace_ptrs, (uword_t)shadow_base);
     // Set it empty

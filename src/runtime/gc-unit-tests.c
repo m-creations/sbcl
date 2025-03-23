@@ -40,7 +40,7 @@ void test_find_freeish()
         for (j = 0; j < MAX_PAGES_FOR_TEST; ++j)
             if (page_table[j].type & OPEN_REGION_PAGE_FLAG) ++count_open_region_pages;
         gc_assert(count_open_region_pages == 1);
-        ensure_region_closed(&r, page_type);
+        ensure_region_closed(&r, page_type, 9);
         gc_assert(bytes_allocated == tot_bytes);
     }
     free(page_table);
