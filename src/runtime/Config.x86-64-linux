@@ -43,7 +43,7 @@ endif
 ifdef HAVE_LIBUNWIND
   OS_LIBS += -lunwind
 endif
-
+CFLAGS += -DDEBUG -DGC_LOGGING
 CFLAGS += -Wunused-parameter -fno-omit-frame-pointer -momit-leaf-frame-pointer
 DISABLE_PIE=no
 
