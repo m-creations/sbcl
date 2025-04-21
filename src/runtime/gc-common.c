@@ -174,6 +174,10 @@ static sword_t scav_lose(lispobj *where, lispobj object)
     return 0; /* bogus return value to satisfy static type checking */
 }
 
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+uint8_t *gc_activitylog_tracks;
+#endif
+
 FILE *gc_activitylog_file;
 FILE *gc_activitylog()
 {
@@ -193,7 +197,10 @@ void heap_scavenge(lispobj *start, lispobj *end)
 
     for (object_ptr = start; object_ptr < end;) {
         lispobj object = *object_ptr;
-        if (GC_LOGGING) fprintf(gc_activitylog(), "o %p\n", object_ptr);
+        //if (GC_LOGGING) fprintf(gc_activitylog(), "o %p\n", object_ptr);
+        page_index_t page = find_page_index((void *)object_ptr);
+        if (GC_LOGGING && !(page<0) && gc_activitylog_tracks[PAGE_TRACK(page)])
+            fprintf(gc_activitylog(), "o p%d\n", page);
         if (other_immediate_lowtag_p(object)) {
 #ifdef GC_DEBUG
             /* This check for scav_lose() isn't strictly necessary,
@@ -1542,6 +1549,12 @@ void gc_common_init()
     hopscotch_init();
     hopscotch_create(&weak_objects, HOPSCOTCH_HASH_FUN_DEFAULT, N_WORD_BYTES,
                      32 /* logical bin count */, 0 /* default range */);
+#ifdef LISP_FEATURE_ALLOCATION_TRACKS
+    gc_activitylog_tracks = calloc(TRACKS_END, sizeof(uint8_t));
+    for (int i = 0; i < TRACKS_END; i++)
+      if (i == 1)
+        gc_activitylog_tracks[(track_index_t)i] = (uint8_t)1;
+#endif
 }
 
 static inline bool stable_eql_hash_p(lispobj obj)
