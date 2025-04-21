@@ -53,6 +53,7 @@
 #include "var-io.h"
 
 /* forward declarations */
+extern uint8_t *gc_activitylog_tracks[];
 extern FILE *gc_activitylog();
 
 /* Largest allocation seen since last GC. */
@@ -509,6 +510,7 @@ gc_alloc_new_region(sword_t nbytes, int WITH_TRACK(page_type), struct alloc_regi
     TR_PT_EXTRACT(tr, page_type)
     /* Check that the region is in a reset state. */
     gc_dcheck(!alloc_region->start_addr);
+    page_index_t asp = alloc_start_pages[tr][page_type & 0x7];
 
     if (page_type == PAGE_TYPE_CONS || page_type == PAGE_TYPE_SMALL_MIXED) {
         // No mutex release, because either this is:
@@ -535,6 +537,9 @@ gc_alloc_new_region(sword_t nbytes, int WITH_TRACK(page_type), struct alloc_regi
           }
         alloc_region->free_pointer = alloc_region->start_addr;
         gc_assert(find_page_index(alloc_region->start_addr) == page);
+        if (GC_LOGGING && gc_activitylog_tracks[tr])
+            fprintf(gc_activitylog(), "> p%d {%2x:%x} (asp=p%d)\n", page, tr, page_type, asp);
+
         return alloc_region->free_pointer;
     }
 
@@ -590,6 +595,8 @@ gc_alloc_new_region(sword_t nbytes, int WITH_TRACK(page_type), struct alloc_regi
         INSTRUMENTING(prepare_pages(1, first_page, last_page, page_type, gc_alloc_generation),
                       et_bzeroing);
 
+    if (GC_LOGGING && gc_activitylog_tracks[tr])
+        fprintf(gc_activitylog(), "> p%d {%2x:%x} (asp=p%d)\n", first_page, tr, page_type, asp);
     return alloc_region->free_pointer;
 }
 
@@ -644,9 +651,10 @@ add_new_area(page_index_t first_page, size_t offset, size_t size)
 
     size_t new_area_start = npage_bytes(first_page) + offset;
     int i, c;
-    if (GC_LOGGING) {
+    if (GC_LOGGING && gc_activitylog_tracks[PAGE_TRACK(first_page)]) {
         char* base = page_address(first_page) + offset;
-        fprintf(gc_activitylog(), "enqueue rescan [%p:%p]\n", base, base+size);
+        //fprintf(gc_activitylog(), "enqueue rescan [%p:%p]\n", base, base+size);
+        fprintf(gc_activitylog(), "enqueue rescan [p%d:%x]\n", find_page_index((void *)base), (int)size);
     }
     /* Search backwards for a prior area that this follows from. If
        found this will save adding a new area. */
@@ -695,6 +703,9 @@ gc_close_region(struct alloc_region *alloc_region, int WITH_TRACK(page_type), in
     int type = page_table[first_page].type;
     gc_assert(type & OPEN_REGION_PAGE_FLAG);
     char *page_base = page_address(first_page);
+
+    if (GC_LOGGING && gc_activitylog_tracks[PAGE_TRACK(first_page)])
+      fprintf(gc_activitylog(), "< p%d {%2x:%x} (asp=p%d) %d\n", first_page, tr, page_type, alloc_start_pages[tr][page_type & 0x7], origin);
 
     // page_bytes_used() can be done without holding a lock. Nothing else
     // affects the usage on the first page of a region owned by this thread.
@@ -2531,7 +2542,8 @@ static page_index_t scan_boxed_root_cards_spanning(page_index_t page, generation
          * algorithm accepts either way on input, but makes its output canonical.
          * (similar in spirit to Postel's Law) */
         if (prev_marked || cardseq_any_marked(card)) {
-            if (GC_LOGGING) fprintf(gc_activitylog(), "scan_roots spanning %p\n", page_address(page));
+            if (GC_LOGGING && gc_activitylog_tracks[PAGE_TRACK(page)])
+                fprintf(gc_activitylog(), "scan_roots spanning %p\n", page_address(page));
             int j;
             for (j=0; j<CARDS_PER_PAGE; ++j, ++card, start += WORDS_PER_CARD) {
                 int marked = card_dirtyp(card);
@@ -2573,7 +2585,8 @@ static page_index_t scan_boxed_root_cards_non_spanning(page_index_t page, genera
         lispobj* start = (void*)page_address(page);
         long card = addr_to_card_index(start);
         if (cardseq_any_marked(card)) {
-            if (GC_LOGGING) fprintf(gc_activitylog(), "scan_roots non-spanning %p\n", page_address(page));
+            if (GC_LOGGING && gc_activitylog_tracks[PAGE_TRACK(page)])
+                fprintf(gc_activitylog(), "scan_roots non-spanning %p\n", page_address(page));
             lispobj* limit = start + page_words_used(page);
             int j;
             for (j=0; j<CARDS_PER_PAGE; ++j, ++card, start += WORDS_PER_CARD) {
@@ -2602,7 +2615,8 @@ static page_index_t scan_mixed_root_cards(page_index_t page, generation_index_t 
         lispobj* start = (void*)page_address(page);
         long card = addr_to_card_index(start);
         if (cardseq_any_marked(card)) {
-            if (GC_LOGGING) fprintf(gc_activitylog(), "scan_roots subcard mixed %p\n", page_address(page));
+          if (GC_LOGGING && gc_activitylog_tracks[PAGE_TRACK(page)])
+                fprintf(gc_activitylog(), "scan_roots subcard mixed %p\n", page_address(page));
             lispobj* limit = start + page_words_used(page);
             int j;
             for (j=0; j<CARDS_PER_PAGE; ++j, ++card, start += WORDS_PER_CARD) {
@@ -2684,7 +2698,8 @@ scavenge_root_gens(generation_index_t from)
                 lispobj* start = (lispobj*)page_address(i);
                 lispobj* limit =
                     (lispobj*)page_address(last_page) + page_words_used(last_page);
-                if (GC_LOGGING) fprintf(gc_activitylog(), "scan_roots mixed %p:%p\n", start, limit);
+                if (GC_LOGGING && gc_activitylog_tracks[PAGE_TRACK(last_page)])
+                    fprintf(gc_activitylog(), "scan_roots mixed %p:%p\n", start, limit);
                 root_mixed_words_scanned += limit - start;
                 heap_scavenge(start, limit);
                 /* Now scan the pages and write protect those that
@@ -2830,8 +2845,13 @@ scavenge_newspace(generation_index_t generation)
                 size_t size = previous_new_areas[i].size;
                 gc_assert(size % (2*N_WORD_BYTES) == 0);
                 lispobj *start = (lispobj*)(page_address(page) + offset);
+                /*
                 if (GC_LOGGING) fprintf(gc_activitylog(), "heap_scav %p..%p\n",
                                      start, (lispobj*)((char*)start + size));
+                */
+                if (GC_LOGGING && gc_activitylog_tracks[PAGE_TRACK(page)])
+                    fprintf(gc_activitylog(), "heap_scav p%d:%x\n",
+                            find_page_index((void *)start), (int)size);
                 heap_scavenge(start, (lispobj*)((char*)start + size));
             }
 
@@ -4628,13 +4648,19 @@ done:
 void really_note_transporting(lispobj old,void*new,sword_t nwords)
 {
     page_index_t p = find_page_index((void*)old);
+    page_index_t p1 = find_page_index(new);
     __attribute__((unused)) uword_t page_usage_limit = (uword_t)((lispobj*)page_address(p) + page_words_used(p));
     gc_assert(old < (uword_t)page_usage_limit); // this helps find bogus pointers
-    if (GC_LOGGING)
+    if (GC_LOGGING && gc_activitylog_tracks[PAGE_TRACK(p)])
         fprintf(gc_activitylog(),
-                listp(old)?"t %"OBJ_FMTX" %"OBJ_FMTX"\n":
-                           "t %"OBJ_FMTX" %"OBJ_FMTX" %x\n",
-                old, (uword_t)new, (int)nwords);
+                listp(old)?"t p%d p%d\n":
+                           "t p%d p%d %x\n",
+                p, p1, (int)nwords);
+    /*
+      listp(old)?"t %"OBJ_FMTX" %"OBJ_FMTX"\n":
+      "t %"OBJ_FMTX" %"OBJ_FMTX" %x\n",
+      old, (uword_t)new, (int)nwords);
+    */
 }
 
 /** heap invariant checker **/
