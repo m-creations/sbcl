@@ -256,24 +256,40 @@
     :with tmp-cons   := (make-array (1+ last-gen))
     :with tmp-boxed  := (make-array (1+ last-gen))
     :with tmp-lg-mix := (make-array (1+ last-gen))
-    :for tr :from last-gen :downto 1
+    :for tr :from 1 #+nil last-gen :downto 1 #+nil last-gen #+nil 1
     :do
        ;; allocate some pages in track TR
        (with-track (tr)
+         #+nil
          (setf (aref tmp-cons tr)
            (alloc-pages/cons (* tr 10)))
          (setf (aref tmp-boxed tr)
-           (alloc-pages/boxed (* tr 20)))
+           (alloc-pages/boxed 1 #+nil (* tr 20)))
+         #+nil
          (setf (aref tmp-lg-mix tr)
            (alloc-pages/large-mixed (* tr 30))))
        ;; push them down to gen TR
+       (loop :for gen :below tr
+             :do
+                (show-tracks)
+                (fmemdump "/tmp/memdump.a" :track 1 :gen 0)
+                (run-program "/bin/sh" (list "-c" "> gc-action.log"))
+                (delete-file "/tmp/gc-log.txt")
+                (gc :gen gen))
+       (show-tracks)
+       (fmemdump "/tmp/memdump.b" :track 1 :gen 0)
+       #|
        (gc :gen tr)
+       (show-tracks)
+    |#
     :finally
+       #|
        (format t "~%After allocating ~~10x Cons, ~~20x Boxed, ~~30x LgMix pages:~%")
        (show-tracks)
        ;;
        (gc :full t) (format t "~%After performing a full GC:~%")
        (show-tracks)
+    |#
        (return (list
                 :cons tmp-cons
                 :boxed tmp-boxed
