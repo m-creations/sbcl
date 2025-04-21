@@ -71,6 +71,9 @@
 (defun page-bits-to-kind (bits)
   (cdr (assoc (logand bits 7) +page-bits-to-kind+)))
 
+(defun page-kind-to-bits (kind)
+  (car (rassoc kind +page-bits-to-kind+)))
+
 (unless (fboundp 'do-pages)
   (defmacro do-pages ((i page) &body body)
     (let ((total-pages (gensym "TOTAL-PAGES")))
@@ -213,6 +216,38 @@
   (let* ((n-bytes (* n-pages gencgc-page-bytes)) ; 32k pages
          (n-elems (truncate (- n-bytes 16) n-word-bytes))) ; 8 bytes per element
     (make-array n-elems)))
+
+(defun memdump (&key gen track page-type (output t))
+  (declare (type (or null (integer 0 6)) gen)
+           (type (or null (integer 0 #xff)) track)
+           (type (or null keyword (cons keyword boolean)) page-type))
+  (when (keywordp page-type)
+    (setf page-type (list page-type)))
+  (when page-type
+    (setf (car page-type)
+      (page-kind-to-bits (car page-type)))
+    (assert (car page-type)))
+  (flet ((_process-obj (obj typecode size)
+           (let* ((addr (get-lisp-obj-address obj))
+                  (offset (rem addr gencgc-page-bytes))
+                  (page-start (- addr offset))
+                  (page (find-page-index addr)))
+             (assert (= page-start (+ dynamic-space-start (* page gencgc-page-bytes))))
+             (format output "~&; #x~10,'0X  ~2X ~9:D  ~A  p~D~%" ;; ~4,'0X~%"
+                     page-start typecode size (type-of obj) page #|offset|#))))
+    (without-gcing
+      (walk-dynamic-space #'_process-obj
+                          (if gen (ash 1 gen) #b1111111)
+                          (if page-type (logior (car page-type) #b10000) 0)
+                          (if page-type (logior (car page-type) (if (cdr page-type) #b10000 0)) 0)
+                          track))))
+
+(defun fmemdump (f &rest rest-args)
+  (with-open-file (out f
+                   :direction :output
+                   :if-does-not-exist :create
+                   :if-exists :supersede)
+    (apply #'memdump :output out rest-args)))
 
 (defun %demo ()
   (loop
