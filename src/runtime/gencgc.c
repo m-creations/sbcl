@@ -384,6 +384,11 @@ set_alloc_start_page(unsigned int WITH_TRACK(page_type), page_index_t page)
     TR_PT_EXTRACT_UNSIGNED(tr, page_type)
     if (page_type > 7) lose("bad page_type: %d", page_type);
     if (page > max_alloc_start_page) max_alloc_start_page = page;
+    if (WITH_TRACK_INDEX(alloc_start_pages,tr)[page_type] != page)
+        if (GC_LOGGING) {
+            fprintf(gc_activitylog(), "alloc_start_page[%2x][%x] := p%d\n",
+                    tr, page_type, page);
+        }
     WITH_TRACK_INDEX(alloc_start_pages,tr)[page_type] = page;
 }
 #include "private-cons.inc"
@@ -2769,6 +2774,7 @@ static void newspace_full_scavenge(generation_index_t generation)
 
 void gc_close_collector_regions(int flag)
 {
+    if (GC_LOGGING) fprintf(gc_activitylog(), "close_collector_regions %x\n", flag);
     ensure_region_closed(code_region,        TR_PT_ARG(0, flag|PAGE_TYPE_CODE), 12);
     ensure_region_closed(boxed_region,       TR_PT_ARG(0, PAGE_TYPE_BOXED), -1);
     ensure_region_closed(unboxed_region,     TR_PT_ARG(0, PAGE_TYPE_UNBOXED), 14);
