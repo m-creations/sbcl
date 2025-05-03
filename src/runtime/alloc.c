@@ -218,8 +218,8 @@ void gc_close_thread_regions(UNUSED_WITHOUT_TRACKS(struct thread* th),
 #if defined LISP_FEATURE_SB_THREAD || defined LISP_FEATURE_X86_64
       { &th->mixed_tlab, TR_PT_ARG(th->track, PAGE_TYPE_MIXED) },
       { &th->cons_tlab, TR_PT_ARG(th->track, PAGE_TYPE_CONS) },
-      { &th->sys_mixed_tlab, TR_PT_ARG(0, PAGE_TYPE_MIXED) },
-      { &th->sys_cons_tlab, TR_PT_ARG(0, PAGE_TYPE_CONS) }
+      { &th->sys_mixed_tlab, TR_PT_ARG(th->track, PAGE_TYPE_MIXED) }, /* FIXME: why not 0?? */
+      { &th->sys_cons_tlab, TR_PT_ARG(th->track, PAGE_TYPE_CONS) }    /* FIXME: why not 0?? */
 #else
       { main_thread_mixed_region, TR_PT_ARG(0, PAGE_TYPE_MIXED) },
       { main_thread_cons_region, TR_PT_ARG(0, PAGE_TYPE_CONS) },
