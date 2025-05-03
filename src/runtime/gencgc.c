@@ -2775,11 +2775,11 @@ static void newspace_full_scavenge(generation_index_t generation)
 void gc_close_collector_regions(int flag)
 {
     if (GC_LOGGING) fprintf(gc_activitylog(), "close_collector_regions %x\n", flag);
-    ensure_region_closed(code_region,        TR_PT_ARG(0, flag|PAGE_TYPE_CODE), 12);
+    ensure_region_closed(code_region,        TR_PT_ARG(0, flag|PAGE_TYPE_CODE), -1);
     ensure_region_closed(boxed_region,       TR_PT_ARG(0, PAGE_TYPE_BOXED), -1);
-    ensure_region_closed(unboxed_region,     TR_PT_ARG(0, PAGE_TYPE_UNBOXED), 14);
-    ensure_region_closed(mixed_region,       TR_PT_ARG(0, PAGE_TYPE_MIXED), 15);
-    ensure_region_closed(small_mixed_region, TR_PT_ARG(0, PAGE_TYPE_SMALL_MIXED), 16);
+    ensure_region_closed(unboxed_region,     TR_PT_ARG(0, PAGE_TYPE_UNBOXED), -1);
+    ensure_region_closed(mixed_region,       TR_PT_ARG(0, PAGE_TYPE_MIXED), -1);
+    ensure_region_closed(small_mixed_region, TR_PT_ARG(0, PAGE_TYPE_SMALL_MIXED), -1);
     ensure_region_closed(cons_region,        TR_PT_ARG(0, PAGE_TYPE_CONS), -1);
 }
 
