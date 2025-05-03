@@ -130,7 +130,7 @@ pthread_mutex_t code_allocator_lock = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct { struct alloc_region* r; int WITH_TRACK(type); } close_region_arg;
 void sync_close_regions(int block_signals, int options,
-                        close_region_arg* a, int count)
+                        close_region_arg* a, int count, int origin)
 {
     sigset_t savedmask;
     __attribute__((unused)) int result;
@@ -166,7 +166,7 @@ void sync_close_regions(int block_signals, int options,
             a[i].r->free_pointer = new_end;
         }
 #endif
-        ensure_region_closed(a[i].r, a[i].WITH_TRACK(type), 5);
+        ensure_region_closed(a[i].r, a[i].WITH_TRACK(type), origin);
     }
     if (options & LOCK_PAGE_TABLE) release_gc_page_table_lock();
     if (options & LOCK_CODE_ALLOCATOR) {
@@ -197,11 +197,11 @@ void close_current_thread_tlab() {
       { THREAD_ALLOC_REGION(self,sys_cons), TR_PT_ARG(0, PAGE_TYPE_CONS) }
 #endif
     };
-    sync_close_regions(1, LOCK_PAGE_TABLE, argv, N_THREAD_TLABS(argv));
+    sync_close_regions(1, LOCK_PAGE_TABLE, argv, N_THREAD_TLABS(argv), 50);
 }
 void close_code_region() {
     close_region_arg argv = { code_region, TR_PT_ARG(0, PAGE_TYPE_CODE) };
-    sync_close_regions(1, LOCK_PAGE_TABLE|LOCK_CODE_ALLOCATOR, &argv, 1);
+    sync_close_regions(1, LOCK_PAGE_TABLE|LOCK_CODE_ALLOCATOR, &argv, 1, 51);
 }
 /* When this is called by unregister_thread() with STOP_FOR_GC blocked,
  * it needs to aquire the page table lock but not the code allocator lock.
@@ -220,7 +220,7 @@ void gc_close_thread_regions(UNUSED_WITHOUT_TRACKS(struct thread* th),
       { main_thread_cons_region, TR_PT_ARG(0, PAGE_TYPE_CONS) },
 #endif
     };
-    sync_close_regions(0, locking, argv, N_THREAD_TLABS(argv));
+    sync_close_regions(0, locking, argv, N_THREAD_TLABS(argv), 52);
 }
 
 extern lispobj* lisp_alloc(int, struct alloc_region *, sword_t,
