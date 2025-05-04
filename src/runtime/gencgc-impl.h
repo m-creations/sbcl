@@ -407,7 +407,7 @@ static bool __attribute__((unused)) new_space_p(lispobj obj)
     gc_dcheck(lowtag_of(copy) == lowtag); \
     gc_dcheck(!from_space_p(copy));
 
-#define GC_LOGGING 1
+#define GC_LOGGING 0
 
 /* For debugging purposes, you can make this macro as complicated as you like,
  * such as checking various other aspects of the object in 'old' */
