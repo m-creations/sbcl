@@ -1121,7 +1121,7 @@ void *collector_alloc_fallback(struct alloc_region* region, sword_t nbytes, int 
      * the fact that the page was selected), then there exists a next card. The next card holds
      * GENCGC_CARD_BYTES, which exceeds SMALL_MIXED_NBYTES_LIMIT. Therefore in this final case,
      * we need to open a region but check whether to advance to a new card */
-    ensure_region_closed(region, WITH_TRACK(page_type), 11);
+    ensure_region_closed(region, WITH_TRACK(page_type), -1);
     void* new_obj = gc_alloc_new_region(nbytes, WITH_TRACK(page_type), region, 0);
     void* new_freeptr = (char*)new_obj + nbytes;
     if (new_freeptr <= region->end_addr) {
