@@ -736,7 +736,7 @@ gc_close_region(struct alloc_region *alloc_region, int WITH_TRACK(page_type), in
         if ((origin != 99) && !PAGE_ON_TR(first_page, tr)) {
             fprintf(stderr, "*** track mismatch in gc_close_region: start=%12p, p=%x, pt=%x, tr=%x != %x @%3d\n",
                     alloc_region->start_addr, first_page, page_type, PAGE_TRACK(first_page), tr, origin);
-            if (!gc_active_p)
+            if (false && !gc_active_p)
                 ldb_monitor();
         }
         gc_assert(page_table[first_page].gen == gc_alloc_generation);
