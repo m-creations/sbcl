@@ -20,6 +20,7 @@
 (defvar *memtop-port* 9999)
 (defvar *memtop-seconds* 1)
 (defvar *memtop-summary-p* t)
+(defvar *memtop-summary-from-c-p* nil) ;; unsafe; may crash the server process!
 (defvar *memtop-room-track* nil)
 (defvar *memtop-room-lines* 20)
 (defvar *memtop-quit* nil)
@@ -66,6 +67,9 @@
               ((#\q) ;; quit
                (setf *memtop-quit* t)
                (loop-finish))
+              ((#\C #\L) ;; toggle summary generation from C (unsafe) vs Lisp
+               (setf *memtop-summary-from-c-p*
+                 (not *memtop-summary-from-c-p*)))
               (t
                (format io-stream "~&; *** unexpected input character: ~S~%" c))))
         (serious-condition (e)
@@ -109,9 +113,11 @@
 
 (defun memtop/gc-gen-report ()
   "Returns the gc_gen_report as a string."
-  (with-output-to-string (s)
-    (sb-sys::without-gcing
-      (sb-vm::gc-gen-report-to-stream s))))
+  (if *memtop-summary-from-c-p*
+      (cl-user::gc-gen-report-to-string)
+      (with-output-to-string (s)
+        (sb-sys::without-gcing
+            (sb-vm::gc-gen-report-to-stream s)))))
 
 (defun memtop (&aux summary-report)
   (labels ((_intro ()
