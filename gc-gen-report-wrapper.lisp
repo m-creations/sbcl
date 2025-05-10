@@ -2,9 +2,9 @@
 
 (defun tmpdir ()
   (let* ((tmpdir (sb-ext:posix-getenv "TMPDIR"))
-	 (tmpdir (and tmpdir (probe-file tmpdir)))
-	 (tmpdir (or tmpdir #P"/tmp/"))
-	 (tmpdir (namestring tmpdir)))
+         (tmpdir (and tmpdir (probe-file tmpdir)))
+         (tmpdir (or tmpdir #P"/tmp/"))
+         (tmpdir (namestring tmpdir)))
     ;; always has trailing slash
     (assert (plusp (length tmpdir)))
     (assert (char= #\/ (char tmpdir (1- (length tmpdir)))))
@@ -24,8 +24,8 @@
 (defun file-lines (path)
   (with-open-file (in path :direction :input)
     (loop for line = (read-line in nil nil nil)
-	  while line
-	  collect line)))
+          while line
+          collect line)))
 
 (defun gc-gen-report-to-fd (fd)
   (with-alien ((gc-gen-report-to-file (function void int unsigned) :extern))
