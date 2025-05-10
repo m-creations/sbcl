@@ -33,12 +33,13 @@
                          (throw 'done nil))))
        ,@body)))
 
-#+quicklisp
+;; #+quicklisp
 (defun interactive (&optional (io-stream *query-io*))
   (with-broken-pipe-handler ((format *error-output* "~&; *** interactive encountered broken-pipe~%"))
     (loop :while T :do
       (handler-case
-          (let ((c (trivial-raw-io:read-char io-stream)))
+          (let ((c #-quicklisp (read-char io-stream nil nil nil)
+                   #+quicklisp (trivial-raw-io:read-char io-stream)))
             (case c
               ((#\return #\newline)) ;; ignore
               ((#\S) ;; toggle report summary
@@ -163,7 +164,7 @@
           (let ((s (socket-make-stream server-sock :input t :output t)))
             (listen s)
             (let ((*standard-output* s))
-              #+quicklisp
+              ;; #+quicklisp
               (sb-thread:make-thread #'interactive :arguments (list s))
               (memtop)
               #+nil

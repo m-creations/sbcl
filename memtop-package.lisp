@@ -22,8 +22,10 @@
 
 (try-form (require 'uiop))
 
+#|
 (unless (find-package :quicklisp)
   (try-form (load "~/quicklisp/setup.lisp")))
 
 #+quicklisp
 (ql:quickload :trivial-raw-io)
+|#
