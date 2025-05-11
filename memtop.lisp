@@ -4,6 +4,7 @@
   (merge-pathnames path (or *load-pathname* *compile-file-pathname*)))
 
 (load (resolve-file "memtop-package.lisp"))
+(load (resolve-file "named-threads.lisp"))
 
 #+asdf
 (let (s1 s2)
@@ -171,7 +172,11 @@
             (listen s)
             (let ((*standard-output* s))
               ;; #+quicklisp
-              (sb-thread:make-thread #'interactive :arguments (list s))
+              (make-thread* #'interactive
+                            :arguments (list s)
+                            :name "memtop-input")
+              (when *set-os-thread-name-p*
+                (set-current-os-thread-name "memtop"))
               (memtop)
               #+nil
               (loop :for line := (read-line s nil nil nil)
