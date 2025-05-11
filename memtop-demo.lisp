@@ -12,6 +12,8 @@ exit 0
 (load (resolve-file "memtop.lisp"))
 (load (resolve-file "threads-with-tracks.lisp"))
 
+(setf sb-vm::*gc-tracks-report-show-thread-names-p* t)
+
 ;; some dummy payloads
 
 (defvar *lists* nil)
