@@ -480,6 +480,7 @@ static inline sword_t object_size(lispobj* where) {
                 (coerce (dynamic-space-size) 'uintptr-t))
         (gc-tracks-report-to-stream tr-tot tot-pages gen-end stream)))))
 
+(defvar *gc-tracks-report-show-thread-names-p* nil)
 
 (defun gc-tracks-report-to-stream (tr-tot tot-pages gen-end stream)
   "Print the track stats."
@@ -531,6 +532,15 @@ static inline sword_t object_size(lispobj* where) {
                        (aref tr-tot tr 8))
                (loop :for gen :from 0 :upto gen-end :do
                  (format stream (page-index-fmt 7) (aref tr-tot tr (+ 9 gen))))
+               (when *gc-tracks-report-show-thread-names-p*
+                 (format stream " | ")
+                 (let ((mapping-sym (find-symbol "*TRACK-THREADS*" :cl-user)))
+                   (assert (and mapping-sym (boundp mapping-sym)))
+                   (let ((track-threads (symbol-value mapping-sym)))
+                     (when (< tr (array-total-size track-threads))
+                       (let ((th (aref track-threads tr)))
+                         (when th
+                           (format stream "~A" (sb-thread:thread-name th))))))))
                (terpri stream))
     (terpri stream)))
 
