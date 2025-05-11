@@ -1,9 +1,15 @@
 (defun resolve-file (path)
   (merge-pathnames path (or *load-pathname* *compile-file-pathname*)))
 
+(defvar *memtop-dir*
+  (resolve-file "../contrib/sb-memtop/"))
+
+(defun load* (relpath)
+  (load (compile-file (merge-pathnames relpath *memtop-dir*))))
+
 ;; Wrapper for C-level report, usually written to (sb-ext:gc-logfile)
 ;; before and after GC (if enabled).
-(load (compile-file (resolve-file "../gc-gen-report-wrapper.lisp")))
+(load* "gc-gen-report-wrapper.lisp")
 
 #|
 (in-package :sb-debug)
@@ -22,7 +28,7 @@
 |#
 
 ;; LISP-level implementation
-(load (compile-file (resolve-file "../gc-gen-report-to-stream.lisp")))
+(load* "gc-gen-report-to-stream.lisp")
 
 (require 'uiop)
 
