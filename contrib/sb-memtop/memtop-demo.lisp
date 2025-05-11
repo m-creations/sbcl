@@ -1,6 +1,6 @@
 #!/bin/bash -e
 #|
-./run-sbcl.sh --script "$0"
+../../run-sbcl.sh --script "$0"
 exit 0
 |#
 
