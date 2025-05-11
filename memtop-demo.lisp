@@ -10,42 +10,42 @@ exit 0
   (merge-pathnames path (or *load-pathname* *compile-file-pathname*)))
 
 (load (resolve-file "memtop.lisp"))
+(load (resolve-file "threads-with-tracks.lisp"))
 
-(defvar *mem1* nil)
-(defvar *mem2* nil)
-(defvar *mem3* nil)
+;; some dummy payloads
 
-(defun t0/periodical-cleanup ()
+(defvar *lists* nil)
+(defvar *arrays* nil)
+(defvar *hash-tables* nil)
+
+(defun periodical-cleanup ()
   (loop
-    (sleep 25)
-    (setf *mem1* nil
-          *mem2* nil
-          *mem3* nil)))
+    (sleep 10)
+    (setf *lists* nil
+          *arrays* nil
+          *hash-tables* nil)))
 
-(defun t1/lists ()
-  (sb-vm::with-track (1)
-    (loop
-      (sleep 0.001)
-      (push (make-list 254) *mem3*))))
+(defun alloc-lists ()
+  (loop
+    (sleep 0.001)
+    (sb-ext:atomic-push (make-list 254) *lists*)))
 
-(defun t2/arrays ()
-  (sb-vm::with-track (2)
-    (loop
-      (sleep 0.001)
-      (push (make-array 510) *mem1*))))
+(defun alloc-arrays ()
+  (loop
+    (sleep 0.001)
+    (sb-ext:atomic-push (make-array 510) *arrays*)))
 
-(defun t3/hash-tables ()
-  (sb-vm::with-track (3)
-    (loop
-      (sleep 0.001)
-      (let ((ht (make-hash-table)))
-        (push ht *mem2*)
-        (loop :for i :below (random 100)
-              :do (setf (gethash i ht) (* i i)))))))
+(defun alloc-hash-tables ()
+  (loop
+    (sleep 0.001)
+    (let ((ht (make-hash-table)))
+      (sb-ext:atomic-push ht *hash-tables*)
+      (loop :for i :below (random 100)
+            :do (setf (gethash i ht) (* i i))))))
 
 ;;(setf (sb-ext:gc-logfile) "/tmp/gc-logfile.txt")
-(sb-thread:make-thread #'t0/periodical-cleanup)
-(sb-thread:make-thread #'t1/lists)
-(sb-thread:make-thread #'t2/arrays)
-(sb-thread:make-thread #'t3/hash-tables)
+(make-thread* #'periodical-cleanup :name "cleanup")
+(make-thread-with-fresh-track #'alloc-lists)
+(make-thread-with-fresh-track #'alloc-arrays)
+(make-thread-with-fresh-track #'alloc-hash-tables)
 (serve-memtop)
