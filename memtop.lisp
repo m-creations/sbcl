@@ -25,6 +25,19 @@
 (defvar *memtop-room-track* nil)
 (defvar *memtop-room-lines* 20)
 (defvar *memtop-quit* nil)
+(defvar *memtop-extensions* nil)
+
+(defmacro def-memtop-extension (c &body body)
+  `(push (cons ,c
+               (lambda ()
+                 ,@body))
+         *memtop-extensions*))
+
+(defmacro undef-memtop-extension (c)
+  `(let ((entry (assoc ,c *memtop-extensions*)))
+     (assert entry)
+     (setf *memtop-extensions*
+       (remove entry *memtop-extensions*))))
 
 (defmacro with-broken-pipe-handler ((&body handler-body) &body body)
   `(catch 'done
@@ -72,7 +85,10 @@
                (setf *memtop-summary-from-c-p*
                  (not *memtop-summary-from-c-p*)))
               (t
-               (format io-stream "~&; *** unexpected input character: ~S~%" c))))
+               (let ((val (cdr (assoc c *memtop-extensions*))))
+                 (if val
+                     (funcall val)
+                     (format io-stream "~&; *** unexpected input character: ~S~%" c))))))
         (serious-condition (e)
           (format io-stream "~&; *** ERROR: ~S~%" e))))))
 
