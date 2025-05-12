@@ -478,7 +478,8 @@ static inline sword_t object_size(lispobj* where) {
                 (coerce bytes-allocated 'uintptr-t)
                 heap-use-frac
                 (coerce (dynamic-space-size) 'uintptr-t))
-        (gc-tracks-report-to-stream tr-tot tot-pages gen-end stream)))))
+        (gc-tracks-report-to-stream tr-tot tot-pages gen-end stream)
+        (gc-threads-report-to-stream stream)))))
 
 (defvar *gc-tracks-report-show-thread-names-p* nil)
 
@@ -544,8 +545,43 @@ static inline sword_t object_size(lispobj* where) {
                (terpri stream))
     (terpri stream)))
 
-#+nil
+(defun thread-state (thread)
+  ;; see print-object method in target-thread.lisp
+  (let* ((values (cond ((sb-thread:thread-alive-p thread) :running)
+                       ((listp (sb-thread::thread-result thread))
+                        (sb-thread::thread-result thread))
+                       (t :aborted)))
+         (state (cond ((eq values :running)
+                       (let* ((thing (progn
+                                       (sb-thread:barrier (:read))
+                                       (sb-thread::thread-waiting-for thread))))
+                         (typecase thing
+                           (null '(:running))
+                           (cons
+                            ;; It's a DX cons, can't look at it.
+                            (list "waiting on a mutex with a timeout"))
+                           (t
+                            (list "waiting on:" thing)))))
+                      ((eq values :aborted) '(:aborted))
+                      (t :finished))))
+    (values state values)))
+
 (defun gc-threads-report-to-stream (stream)
+  (format stream "  Thread  Track  State   TotBytesAlloc~%")
+  (macrolet ((metric (c-thread slot)
+               `(sb-sys:sap-ref-word (sb-sys:int-sap ,c-thread)
+                                     (ash ,slot sb-vm:word-shift))))
+    (dolist (th (sort (sb-thread:list-all-threads) '< :key 'sb-thread:thread-os-tid))
+      (let* ((tid (sb-thread:thread-os-tid th))
+             (c-thread (sb-thread::thread-primitive-thread th))
+             (tr (metric c-thread sb-vm::thread-track-slot))
+             (boxed (metric c-thread sb-vm::thread-tot-bytes-alloc-boxed-slot))
+             (unboxed (metric c-thread sb-vm::thread-tot-bytes-alloc-unboxed-slot)))
+        (multiple-value-bind (state values) (thread-state th)
+          (format stream "~8D  x~2,'0X    ~{~8A~} ~12D | ~A~%"
+                  tid tr state (+ boxed unboxed) (sb-thread:thread-name th))))))
+  (terpri stream)
+  #|
   (format stream
           #.(format nil "~A~A~A"
                     "  Thread  Track  State   TotBytesAlloc"
@@ -587,4 +623,5 @@ static inline sword_t object_size(lispobj* where) {
               (slot (slot th 'symbol_tlab) 'free_pointer)
               (slot (slot th 'sys_mixed_tlab) 'free_pointer)
               (slot (slot th 'sys_cons_tlab) 'free_pointer))
-      (terpri stream))))
+      (terpri stream)))
+  |#)
