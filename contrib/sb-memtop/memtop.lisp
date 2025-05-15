@@ -112,14 +112,16 @@
               ((#\N) ;; toggle display of thread names in tracks list
                (setf sb-vm::*gc-tracks-report-show-thread-names-p*
                  (not sb-vm::*gc-tracks-report-show-thread-names-p*)))
-              ((#\C #\L) ;; toggle summary generation from C (unsafe) vs Lisp
+              ((#\C) ;; toggle summary generation from C (unsafe) vs Lisp
                (setf *memtop-summary-from-c-p*
                  (not *memtop-summary-from-c-p*)))
               (t
                (let ((val (cdr (assoc c *memtop-extensions*))))
                  (if val
-                     (funcall val)
-                     (format io-stream "~&; *** unexpected input character: ~S~%" c))))))
+                     (funcall val io-stream)
+                     (progn
+                       (format io-stream "~&; *** unexpected input character: ~S~%" c)
+                       (sleep 3)))))))
         (serious-condition (e)
           (format io-stream "~&; *** ERROR: ~S~%" e))))))
 
