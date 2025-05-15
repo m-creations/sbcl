@@ -22,8 +22,13 @@
 (defvar *memtop-seconds* 1)
 (defvar *memtop-summary-p* t)
 (defvar *memtop-summary-from-c-p* nil) ;; unsafe; may crash the server process!
-(defvar *memtop-room-track* nil)
+(defvar *memtop-track* nil)
+(defvar *memtop-room-p* t)
 (defvar *memtop-room-lines* 20)
+(defvar *memtop-dump-p* nil)
+(defvar *memtop-dump-type* t)
+(defvar *memtop-dump-widetag* nil)
+(defvar *memtop-dump-limit* 10)
 (defvar *memtop-quit* nil)
 (defvar *memtop-extensions* nil)
 
@@ -78,10 +83,25 @@
                (setf *memtop-seconds* (parse-integer (read-line io-stream))))
               ((#\t) ;; track
                (let* ((line (read-line io-stream)))
-                 (setf *memtop-room-track*
+                 (setf *memtop-track*
                    (if (every #'sb-unicode:whitespace-p line)
                        nil
                        (parse-integer line)))))
+              ((#\d) ;; dump objects
+               (setf *memtop-dump-p*
+                 (not *memtop-dump-p*)))
+              ((#\w) ;; widetag for dump
+               (let* ((line (read-line io-stream)))
+                 (setf *memtop-dump-widetag*
+                   (if (every #'sb-unicode:whitespace-p line)
+                       nil
+                       (parse-integer line :radix 16)))))
+              ((#\!) ;; object type for dump
+               (let* ((line (read-line io-stream)))
+                 (setf *memtop-dump-type*
+                   (if (every #'sb-unicode:whitespace-p line)
+                       t
+                       (read-from-string line)))))
               #+nil
               ;; When the client reports "Conection closed by foreign host.",
               ;; an immediately following server restart will fail with
@@ -139,6 +159,40 @@
         (when callback/after
           (funcall callback/after))))))
 
+(defun memtop/dump-objects (tr &key (limit *memtop-dump-limit*) callback/before callback/after)
+  (sb-vm::with-track (sb-vm::+reserved-track+)
+    (when callback/before
+      (funcall callback/before))
+    (let* ((k 0))
+      (format t "~&~% ~2@A  ~3@A ~15@A  ~A~%"
+              "#" "WT" "SIZE" "OBJECT & TYPE")
+      (catch 'done
+        (flet ((_fun (obj widetag size)
+                 (when (and (or (null *memtop-dump-widetag*)
+                                (eql widetag *memtop-dump-widetag*))
+                            (typep obj *memtop-dump-type*))
+                   (incf k)
+                   (when (> k limit)
+                     (throw 'done nil))
+                   (let ((*print-miser-width* 120)
+                         (*print-right-margin* 120)
+                         (*print-margin* nil)
+                         (*print-width* nil)
+                         (*print-length* 20)
+                         (*print-depth* 3)
+                         (*print-circle* t))
+                     (format t " ~2D: x~2,'0X ~15D  ~A  [~S]~%"
+                             k widetag size
+                             (if (and (consp obj)
+                                      (consp (cdr obj)))
+                                 (format nil "(~A . [~A])" (car obj) (type-of (cdr obj)))
+                                 (write-to-string obj))
+                             (type-of obj))))))
+          (sb-sys::without-gcing ()
+            (sb-vm::walk-dynamic-space #'_fun #b1111111 0 0 tr)))))
+    (when callback/after
+      (funcall callback/after))))
+
 (defun memtop/gc-gen-report ()
   "Returns the gc_gen_report as a string."
   (if *memtop-summary-from-c-p*
@@ -156,7 +210,7 @@
                                   (decode-universal-time (get-universal-time))
                (format t "~A-~2,'0D-~2,'0D ~2,'0D:~2,'0D:~2,'0D" year month day hh mm ss))
              ;; print track
-             (format t "~@[  -- Track: #x~2,'0X~]" *memtop-room-track*)
+             (format t "~@[  -- Track: #x~2,'0X~]" *memtop-track*)
              (format t "~%~%"))
            (_intro+summary ()
              (_intro)
@@ -166,9 +220,14 @@
       (setf summary-report
         (when *memtop-summary-p*
           (memtop/gc-gen-report)))
-      (let ((tr *memtop-room-track*))
+      (let ((tr *memtop-track*))
         (if tr
-            (memtop/room-objects tr :callback/before #'_intro+summary)
+            (progn
+              (when *memtop-room-p*
+                (memtop/room-objects tr :callback/before #'_intro+summary))
+              (when *memtop-dump-p*
+                (memtop/dump-objects tr :callback/before (and (not *memtop-room-p*)
+                                                              #'_intro+summary))))
             (_intro+summary)))
       (finish-output)
       #+nil
