@@ -50,13 +50,19 @@
                          (throw 'done nil))))
        ,@body)))
 
+(defun read-char* (io-stream)
+  (let ((c #-quicklisp (read-char io-stream nil nil nil)
+           #+quicklisp (trivial-raw-io:read-char io-stream)))
+    (format io-stream "~%; got char: ~S~%" c)
+    (finish-output io-stream)
+    c))
+
 ;; #+quicklisp
 (defun interactive (&optional (io-stream *query-io*))
   (with-broken-pipe-handler ((format *error-output* "~&; *** interactive encountered broken-pipe~%"))
     (loop :while T :do
       (handler-case
-          (let ((c #-quicklisp (read-char io-stream nil nil nil)
-                   #+quicklisp (trivial-raw-io:read-char io-stream)))
+          (let ((c (read-char* io-stream)))
             (case c
               ((#\return #\newline)) ;; ignore
               ((#\S) ;; toggle report summary
