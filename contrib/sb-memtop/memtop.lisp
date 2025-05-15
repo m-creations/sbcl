@@ -27,9 +27,11 @@
 (defvar *memtop-quit* nil)
 (defvar *memtop-extensions* nil)
 
-(defmacro def-memtop-extension (c &body body)
+(defmacro def-memtop-extension (c (&optional io-stream-var) &body body)
   `(push (cons ,c
-               (lambda ()
+               (lambda (,(or io-stream-var 'io-stream-dummy))
+                 ,@(unless io-stream-var
+                     `((declare (ignore io-stream-dummy))))
                  ,@body))
          *memtop-extensions*))
 
