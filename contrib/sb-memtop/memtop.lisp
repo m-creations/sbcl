@@ -58,8 +58,8 @@
     c))
 
 ;; #+quicklisp
-(defun interactive (&optional (io-stream *query-io*))
-  (with-broken-pipe-handler ((format *error-output* "~&; *** interactive encountered broken-pipe~%"))
+(defun memtop-control (&optional (io-stream *query-io*))
+  (with-broken-pipe-handler ((format *error-output* "~&; *** broken-pipe in memtop-control~%"))
     (loop :while T :do
       (handler-case
           (let ((c (read-char* io-stream)))
@@ -199,9 +199,9 @@
             (listen s)
             (let ((*standard-output* s))
               ;; #+quicklisp
-              (make-thread* #'interactive
+              (make-thread* #'memtop-control
                             :arguments (list s)
-                            :name "memtop-input")
+                            :name "memtop-control")
               (when *set-os-thread-name-p*
                 (set-current-os-thread-name "memtop"))
               (memtop)
