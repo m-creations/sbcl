@@ -19,6 +19,8 @@ exit 0
 (defvar *gc-logfile-name*
   "/tmp/gc-logfile.txt")
 
+(setf (sb-ext:gc-logfile) *gc-logfile-name*)
+
 (def-memtop-extension #\L ()
   ;; toggle gc logging to file
   (setf (sb-ext:gc-logfile)
@@ -26,11 +28,6 @@ exit 0
         nil
         *gc-logfile-name*)))
 
-;; some dummy workers
-
-#| example:
-
-|#
 
 (defvar *worker-configs* nil)
 
@@ -73,6 +70,8 @@ exit 0
              (let ((config `(:fun ,',worker-fun :char ,,c :throttle ,',throttle-var
                              :periodical-reset-fun ,',reset-fun :reset-period ,',period-var)))
                (push config *worker-configs*))))))))
+
+;; some dummy workers
 
 (def-worker alloc-lists (*lists*)
   (sb-ext:atomic-push (make-list 254) *lists*))
