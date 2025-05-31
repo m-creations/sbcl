@@ -203,6 +203,13 @@
         (sb-sys::without-gcing
             (sb-vm::gc-gen-report-to-stream s)))))
 
+#+nil
+(defun uptime ()
+  (with-alien ((base (struct sb-unix::timespec) :extern "lisp_init_time"))
+    (values
+     (the fixnum (slot base 'sb-unix:tv-sec))
+     (the fixnum (slot base 'sb-unix::tv-nsec)))))
+
 (defun memtop (&aux summary-report)
   (labels ((_intro ()
              ;; clear screen
